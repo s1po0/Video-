@@ -40,11 +40,18 @@ need "$APKSIGNER" apksigner
 MODE="debug"
 [ "${1:-}" = "--release" ] && MODE="release"
 
-MIN_SDK=24
-TARGET_SDK=34
-VERSION_CODE=1
-VERSION_NAME="1.0.0"
-[ "$MODE" = "debug" ] && VERSION_NAME="1.0.0-debug"
+# Single source of truth for the version: app/build.gradle
+GRADLE_FILE="$APP/build.gradle"
+MIN_SDK=$(grep -oP 'minSdk\s+\K[0-9]+' "$GRADLE_FILE" | head -1)
+TARGET_SDK=$(grep -oP 'targetSdk\s+\K[0-9]+' "$GRADLE_FILE" | head -1)
+VERSION_CODE=$(grep -oP 'versionCode\s+\K[0-9]+' "$GRADLE_FILE" | head -1)
+VERSION_NAME=$(grep -oP 'versionName\s+"\K[^"]+' "$GRADLE_FILE" | head -1)
+MIN_SDK=${MIN_SDK:-24}
+TARGET_SDK=${TARGET_SDK:-34}
+VERSION_CODE=${VERSION_CODE:-1}
+VERSION_NAME=${VERSION_NAME:-1.0.0}
+[ "$MODE" = "debug" ] && VERSION_NAME="${VERSION_NAME}-debug"
+echo "==> version: $VERSION_NAME ($VERSION_CODE), sdk $MIN_SDK..$TARGET_SDK"
 
 echo "==> build mode: $MODE"
 rm -rf "$BUILD"
