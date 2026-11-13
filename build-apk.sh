@@ -75,10 +75,19 @@ echo "==> linking resources"
 
 echo "==> compiling java"
 find "$APP/src/main/java" "$BUILD/gen" -name '*.java' > "$BUILD/sources.txt"
+rm -f "$BUILD/javac.log"
+set +e
 "$JAVAC" -source 11 -target 11 -encoding UTF-8 -nowarn -Xlint:-options \
   -classpath "$ANDROID_JAR" \
   -d "$BUILD/classes" \
-  @"$BUILD/sources.txt" 2>&1 | grep -v "^Note:" || true
+  @"$BUILD/sources.txt" > "$BUILD/javac.log" 2>&1
+JAVAC_STATUS=$?
+set -e
+grep -v "^Note:" "$BUILD/javac.log" || true
+if [ $JAVAC_STATUS -ne 0 ]; then
+  echo "!! compilation failed – see errors above"
+  exit $JAVAC_STATUS
+fi
 
 echo "==> dexing (d8)"
 find "$BUILD/classes" -name '*.class' > "$BUILD/classes.txt"

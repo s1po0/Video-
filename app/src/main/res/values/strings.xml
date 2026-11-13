@@ -1,52 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Video Upscaler</string>
-    <string name="tagline">Upscale any video 2× / 3× / 4× on your phone. No internet needed.</string>
+    <string name="tagline_short">Upscale · sharpen · offline</string>
 
     <string name="no_video">No video selected</string>
+    <string name="no_video_hint">Tap below to choose a clip or a full movie</string>
     <string name="untitled">Untitled video</string>
     <string name="pick_video">Choose a video</string>
 
     <string name="scale">Upscale factor</string>
-    <string name="scale_2x">2× — fast</string>
-    <string name="scale_3x">3× — balanced</string>
-    <string name="scale_4x">4× — maximum</string>
+    <string name="scale_2x">2×</string>
+    <string name="scale_3x">3×</string>
+    <string name="scale_4x">4×</string>
 
     <string name="quality">Quality profile</string>
-    <string name="q_draft">Draft — quickest</string>
-    <string name="q_balanced">Balanced — recommended</string>
-    <string name="q_best">Best — Lanczos 3, slowest</string>
+    <string name="q_draft">Draft</string>
+    <string name="q_balanced">Balanced</string>
+    <string name="q_best">Maximum</string>
 
     <string name="codec">Output codec</string>
     <string name="codec_auto">Automatic (recommended)</string>
+    <string name="sharpen_short">Detail sharpening</string>
+    <string name="keep_audio_short">Keep original audio</string>
+    <string name="keep_audio_hint">Copied untouched into the result</string>
+    <string name="no_audio_output">Mute the output</string>
+    <string name="no_audio_output_hint">Smaller file, video only</string>
 
-    <string name="sharpen">Detail sharpening: %1$d%%</string>
-    <string name="keep_audio">Keep original audio</string>
-    <string name="output_size">Output resolution: %1$s</string>
+    <string name="output_size">Output: %1$s</string>
+    <string name="scale_limited">Your device can encode up to %1$s, so the factor was reduced.</string>
+    <string name="not_enough_space">Not enough free space: about %1$s needed, %2$s available.</string>
+    <string name="eta">≈ %1$s left</string>
 
     <string name="start">Start upscaling</string>
     <string name="cancel">Cancel</string>
-    <string name="open">Open</string>
+    <string name="open">Play</string>
     <string name="share">Share</string>
 
-    <string name="status_idle">Waiting for a video…</string>
+    <string name="status_idle">Pick a video to begin.</string>
     <string name="status_ready">Ready. Tap “Start upscaling”.</string>
-    <string name="status_starting">Preparing…</string>
+    <string name="status_preparing">Preparing…</string>
     <string name="status_copying">Copying the video…</string>
-    <string name="status_preparing">Analyzing the video…</string>
-    <string name="status_saving">Saving to Movies/Video Upscaler…</string>
+    <string name="status_analysing">Analysing the stream…</string>
+    <string name="status_finalising">Finalising the file…</string>
     <string name="status_done">Done — %1$d × %2$d in %3$s s. Saved to Movies/Video Upscaler.</string>
     <string name="status_cancelled">Cancelled. Nothing was saved.</string>
     <string name="status_cancelling">Cancelling…</string>
     <string name="status_failed">Failed: %1$s</string>
     <string name="status_failed_title">Could not upscale this video</string>
-    <string name="failure_hint">Hints: try copying the video into the phone\'s own storage first, pick a smaller upscale factor, or select H.264 as the codec.</string>
+    <string name="failure_hint">Hints: keep the phone plugged in, free up storage, choose a smaller factor, or select H.264 as the codec.</string>
     <string name="still_working">Please wait for the current job to finish.</string>
 
     <string name="err_no_picker">No file picker available on this device.</string>
     <string name="err_read">Could not read the video: %1$s</string>
     <string name="err_open">Could not open the selected file.</string>
     <string name="err_empty_file">The selected file is empty or could not be downloaded. Try copying it to internal storage first.</string>
+    <string name="err_no_space">Not enough free storage to finish this job.</string>
     <string name="err_play">No video player found.</string>
     <string name="err_share">Could not share the file.</string>
 

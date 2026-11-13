@@ -6,29 +6,51 @@ An Android video upscaler: **2× / 3× / 4× any video on the device**, 100 % of
 
 ---
 
-## ⬇️ داونلۆدکردنی APK
+## ⬇️ داونلۆدکردنی APK — وەشان ١.١.٠
+
+### 👉 [**Google Drive — داونلۆدی ڕاستەوخۆ**](https://drive.google.com/uc?id=19UHWBZz7nKAJo8CeFpji5YZH9jcOrptk&export=download)
 
 | سەرچاوە | لینک |
 |---|---|
-| 📥 **Google Drive** (لینکی ڕاستەوخۆ) | [VideoUpscaler-1.0.1.apk](https://drive.google.com/uc?id=1xII6ffzBDGOwhtGBOoDz_cJ3yNuDj7DE&export=download) |
-| ☁️ **Dropbox** | [VideoUpscaler-1.0.1.apk](https://www.dropbox.com/scl/fi/4r0jrvsbiwixd2eunh1kw/VideoUpscaler-1.0.1.apk?rlkey=hcqievveihnftx65iqtdehwn3&dl=1) |
-| 🐙 **GitHub** (فایلی خام) | [VideoUpscaler-1.0.1.apk](https://github.com/s1po0/Video-/raw/arena/50215008-video/VideoUpscaler-1.0.1.apk) |
+| 📥 **Google Drive** | [VideoUpscaler-1.1.0.apk](https://drive.google.com/uc?id=19UHWBZz7nKAJo8CeFpji5YZH9jcOrptk&export=download) |
+| ☁️ **Dropbox** | [VideoUpscaler-1.1.0.apk](https://www.dropbox.com/scl/fi/j2fyylqn1efuohz58ca2k/VideoUpscaler-1.1.0.apk?rlkey=6opr8jc8fi5kno01h8bb2rj31&dl=1) |
+| 🐙 **GitHub** (خام) | [VideoUpscaler-1.1.0.apk](https://github.com/s1po0/Video-/raw/arena/50215008-video/VideoUpscaler-1.1.0.apk) |
 
-وەشان ١.٠.١ · ٤٥ کیلۆبایت · Android 7.0+ · ئیمزاکراو (v2+v3)
+٥٣ کیلۆبایت · Android 7.0+ · ئیمزاکراو (v2+v3)
 
 ### دامەزراندن
-1. لەم لینکەوە فایلی `.apk` دابەزێنە
-2. لە Settings → Security → **Install unknown apps** ڕێگە بە فایل مەنجەر/Chrome بدە
-3. کرتە لە فایلەکە بکە → **Install**
-4. ئەگەر وەشانی کۆنت هەبوو، سەرەتا لایبەرە (ئیمزاکە جیاوازە)
+1. لە لینکەکەوە فایلی `.apk` دابەزێنە
+2. Settings → Security → **Install unknown apps** ڕێگە بە Chrome/فایل مەنجەر بدە
+3. کرتە لە فایلەکە → **Install**
+4. ⚠️ وەشانی کۆن (1.0.x) سەرەتا لابەرە
 
 ### دروستکردنی خۆت
 ```bash
 ./fetch-tools.sh                 # JDK + build-tools + android.jar → .tools/
 source .tools/env.sh
-./build-apk.sh                   # → build/video-upscaler-1.0.1-debug.apk
+./build-apk.sh                   # → build/video-upscaler-1.1.0-debug.apk
 ./build-apk.sh --release         # لەگەڵ keystore.properties
 ```
+
+---
+
+## 🆕 چی نوێیە لە ١.١.٠
+
+**ڕووکار (UI/UX) بە تەواوی نوێکرایەوە**
+- دیزاینی تاریکی نوێ بە ڕەنگی شین-مۆر (aurora)، کارتی خڕ، سێبەری نەرم
+- چیپی هەڵبژاردن (٢×/٣×/٤×، خێرا/هاوسەنگ/زۆرترین) لە جیاتی spinner
+- **thumbnail** ی ڤیدیۆکە لە خۆکاری دەردەکەوێت
+- سلایدەری تیژکردن بە ڕەنگی ڕوانگە + سوێچی نوێ
+- شریتی پێشکەوتن بە **٪ و کاتی ماوە (ETA)**
+
+**پشتگیری فیلمی گەورە و درێژ**
+- نووسین **ڕاستەوخۆ** بۆ فایلی کۆتایی (بێ فایلی تەمپەڕی دووهەند) — فیلمی ٢ کاتژمێریش بێ کێشەی بیرگە
+- `MediaMuxer` بە **FileDescriptor** (API 26+) — بێ کۆپیکردنی زیادە
+- پلەی گەورەکردن بە خۆکاری کەم دەکرێتەوە ئەگەر ئینکۆدەری ئامێر نەیگرێتەوە (وەک 4K→16K)
+- `PTS` ی ڕێکخراو بۆ stream ی B-frame، GOP ی ٢ چرکە
+- پشکنینی **بیرگەی بەردەست** پێش دەستپێکردن
+- کۆپیکردنی دەنگ بە streaming (بیرەوەری کەم)
+- پاککردنەوەی خۆکاری فایلە کاتییەکان
 
 ## ✨ تایبەتمەندییەکان
 

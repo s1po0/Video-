@@ -1,52 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">باشکردنی ڤیدیۆ</string>
-    <string name="tagline">هەر ڤیدیۆیەک ٢× / ٣× / ٤× گەورە بکە، تەنها لەسەر مۆبایلەکەت. بێ ئینتەرنێت.</string>
+    <string name="tagline_short">گەورەکردن · تیژکردن · بێ ئینتەرنێت</string>
 
     <string name="no_video">هیچ ڤیدیۆیەک هەڵنەبژێردراوە</string>
+    <string name="no_video_hint">کرتە بکە بۆ هەڵبژاردنی کلپێک یان فیلمێکی تەواو</string>
     <string name="untitled">ڤیدیۆی بێ ناو</string>
     <string name="pick_video">ڤیدیۆ هەڵبژێرە</string>
 
     <string name="scale">پلەی گەورەکردن</string>
-    <string name="scale_2x">٢× — خێرا</string>
-    <string name="scale_3x">٣× — هاوسەنگ</string>
-    <string name="scale_4x">٤× — زۆرترین</string>
+    <string name="scale_2x">٢×</string>
+    <string name="scale_3x">٣×</string>
+    <string name="scale_4x">٤×</string>
 
     <string name="quality">کوالیتی</string>
-    <string name="q_draft">خێرا — بۆ تاقیکردنەوە</string>
-    <string name="q_balanced">هاوسەنگ — پێشنیارکراو</string>
-    <string name="q_best">باشترین — هێواش</string>
+    <string name="q_draft">خێرا</string>
+    <string name="q_balanced">هاوسەنگ</string>
+    <string name="q_best">زۆرترین</string>
 
     <string name="codec">شێوازی کۆدەک</string>
     <string name="codec_auto">خۆکار (پێشنیارکراو)</string>
+    <string name="sharpen_short">تیژی وردەکاری</string>
+    <string name="keep_audio_short">دەنگی ڕەسەن بهێڵەوە</string>
+    <string name="keep_audio_hint">بێ گۆڕان دەگوازرێتەوە بۆ دەرئەنجام</string>
+    <string name="no_audio_output">دەنگ لابەرە</string>
+    <string name="no_audio_output_hint">فایلی بچووکتر، تەنها ڤیدیۆ</string>
 
-    <string name="sharpen">تیژی وردەکاری: ٪%1$d</string>
-    <string name="keep_audio">دەنگی ڕەسەن بهێڵەوە</string>
-    <string name="output_size">قەبارەی دەرچوو: %1$s</string>
+    <string name="output_size">دەرچوو: %1$s</string>
+    <string name="scale_limited">ئامێرەکەت تەنها تا %1$s ئینکۆد دەکات، بۆیە پلەکە کەمکرایەوە.</string>
+    <string name="not_enough_space">بیرگە بەس نییە: نزیکەی %1$s پێویستە، %2$s بەردەستە.</string>
+    <string name="eta">≈ %1$s ماوە</string>
 
     <string name="start">دەستپێکردن</string>
     <string name="cancel">پاشگەزبوونەوە</string>
-    <string name="open">کردنەوە</string>
+    <string name="open">لێدان</string>
     <string name="share">هاوبەشکردن</string>
 
-    <string name="status_idle">چاوەڕوانی ڤیدیۆ…</string>
+    <string name="status_idle">ڤیدیۆیەک هەڵبژێرە بۆ دەستپێکردن.</string>
     <string name="status_ready">ئامادەیە. کرتە لە «دەستپێکردن» بکە.</string>
-    <string name="status_starting">ئامادەکردن…</string>
+    <string name="status_preparing">ئامادەکردن…</string>
     <string name="status_copying">کۆپیکردنی ڤیدیۆ…</string>
-    <string name="status_preparing">شیکردنەوەی ڤیدیۆ…</string>
-    <string name="status_saving">پاشەکەوتکردن لە Movies/Video Upscaler…</string>
+    <string name="status_analysing">شیکردنەوەی ڤیدیۆ…</string>
+    <string name="status_finalising">تەواوکردنی فایل…</string>
     <string name="status_done">تەواو بوو — %1$d × %2$d لە %3$s چرکە. لە Movies/Video Upscaler پاشەکەوت کرا.</string>
     <string name="status_cancelled">هەڵوەشێنرایەوە. هیچ پاشەکەوت نەکرا.</string>
     <string name="status_cancelling">هەڵوەشاندنەوە…</string>
     <string name="status_failed">سەرکەوتوو نەبوو: %1$s</string>
     <string name="status_failed_title">نەتوانرا ئەم ڤیدیۆیە باش بکرێت</string>
-    <string name="failure_hint">ئامۆژگاری: سەرەتا ڤیدیۆکە کۆپی بکە بۆ بیرگەی ناوەکی مۆبایل، یان پلەی گەورەکردن کەم بکە، یان H.264 وەک کۆدەک هەڵبژێرە.</string>
+    <string name="failure_hint">ئامۆژگاری: مۆبایلەکە بە شەحنەر بەستەوە، بیرگە بەتاڵ بکە، پلەی گەورەکردن کەم بکە، یان H.264 وەک کۆدەک هەڵبژێرە.</string>
     <string name="still_working">تکایە چاوەڕێ بکە تا کارەکە تەواو دەبێت.</string>
 
     <string name="err_no_picker">هیچ بەرنامەیەکی هەڵبژاردنی فایل نییە.</string>
     <string name="err_read">نەتوانرا ڤیدیۆ بخوێندرێتەوە: %1$s</string>
     <string name="err_open">نەتوانرا فایلی هەڵبژێردراو بکرێتەوە.</string>
     <string name="err_empty_file">فایلەکە بەتاڵە یان نەتوانرا دابەزێنرێت. سەرەتا کۆپی بکە بۆ بیرگەی ناوخۆیی.</string>
+    <string name="err_no_space">بیرگەی بەردەست بەس نییە بۆ تەواوکردنی ئەم کارە.</string>
     <string name="err_play">هیچ پلەیەرێکی ڤیدیۆ نەدۆزرایەوە.</string>
     <string name="err_share">نەتوانرا فایل هاوبەش بکرێت.</string>
 
