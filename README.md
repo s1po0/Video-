@@ -8,22 +8,27 @@ An Android video upscaler: **2× / 3× / 4× any video on the device**, 100 % of
 
 ## ⬇️ داونلۆدکردنی APK
 
-دوای ئەوەی CI یەکەم جار بەسەرکەوتوویی تێپەڕی، APK لە GitHub Actions دەدۆزرێتەوە:
+| سەرچاوە | لینک |
+|---|---|
+| 📥 **Google Drive** (لینکی ڕاستەوخۆ) | [VideoUpscaler-1.0.1.apk](https://drive.google.com/uc?id=1xII6ffzBDGOwhtGBOoDz_cJ3yNuDj7DE&export=download) |
+| ☁️ **Dropbox** | [VideoUpscaler-1.0.1.apk](https://www.dropbox.com/scl/fi/4r0jrvsbiwixd2eunh1kw/VideoUpscaler-1.0.1.apk?rlkey=hcqievveihnftx65iqtdehwn3&dl=1) |
+| 🐙 **GitHub** (فایلی خام) | [VideoUpscaler-1.0.1.apk](https://github.com/s1po0/Video-/raw/arena/50215008-video/VideoUpscaler-1.0.1.apk) |
 
-`Actions` → *Build APK* → دوایین run → `Artifacts` → **video-upscaler-apk**
+وەشان ١.٠.١ · ٤٥ کیلۆبایت · Android 7.0+ · ئیمزاکراو (v2+v3)
 
-یان خۆت لە کۆمپیوتەرەکەت دروستی بکە (بێ ئینتەرنێت بۆ Gradle پێویست نییە):
+### دامەزراندن
+1. لەم لینکەوە فایلی `.apk` دابەزێنە
+2. لە Settings → Security → **Install unknown apps** ڕێگە بە فایل مەنجەر/Chrome بدە
+3. کرتە لە فایلەکە بکە → **Install**
+4. ئەگەر وەشانی کۆنت هەبوو، سەرەتا لایبەرە (ئیمزاکە جیاوازە)
 
+### دروستکردنی خۆت
 ```bash
-./fetch-tools.sh                     # JDK + build-tools + android.jar → .tools/
+./fetch-tools.sh                 # JDK + build-tools + android.jar → .tools/
 source .tools/env.sh
-./build-apk.sh                       # → build/video-upscaler-1.0.0-debug.apk
-./build-apk.sh --release             # لەگەڵ keystore.properties
+./build-apk.sh                   # → build/video-upscaler-1.0.1-debug.apk
+./build-apk.sh --release         # لەگەڵ keystore.properties
 ```
-
-پاشان APK کۆپی بکە بۆ مۆبایلەکەت و دایمەزرێنە (پێویستە «داشکاندنی سەرچاوەی نەناسراو» ڕێگەپێدراو بێت).
-
----
 
 ## ✨ تایبەتمەندییەکان
 
