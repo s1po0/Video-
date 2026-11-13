@@ -1,6 +1,5 @@
 package com.videoupscaler.app;
 
-import android.content.res.AssetFileDescriptor;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
@@ -71,8 +70,10 @@ final class VideoEngine {
 
     // ------------------------------------------------------------------ run --
 
-    Result transcode(AssetFileDescriptor videoFd, AssetFileDescriptor audioFd,
-                     String outputPath, Config cfg) throws Exception {
+    /**
+     * @param videoPath local, seekable path of the video to process
+     */
+    Result transcode(String videoPath, String outputPath, Config cfg) throws Exception {
         long startedAt = System.currentTimeMillis();
 
         MediaExtractor video = new MediaExtractor();
@@ -83,8 +84,7 @@ final class VideoEngine {
         Scaler scaler = null;
 
         try {
-            video.setDataSource(videoFd.getFileDescriptor(), videoFd.getStartOffset(),
-                    videoFd.getDeclaredLength());
+            video.setDataSource(videoPath);
 
             int videoTrack = findTrack(video, "video/");
             if (videoTrack < 0) throw new IOException("no video track found");
@@ -169,13 +169,20 @@ final class VideoEngine {
 
             // Optional audio passthrough.
             MediaFormat audioFormat = null;
-            int audioTrack = -1;
-            if (cfg.copyAudio && audioFd != null) {
-                audio = new MediaExtractor();
-                audio.setDataSource(audioFd.getFileDescriptor(), audioFd.getStartOffset(),
-                        audioFd.getDeclaredLength());
-                audioTrack = findTrack(audio, "audio/");
-                if (audioTrack >= 0) audioFormat = audio.getTrackFormat(audioTrack);
+            int audioTrack = findTrack(video, "audio/");
+            if (cfg.copyAudio && audioTrack >= 0) {
+                audioFormat = video.getTrackFormat(audioTrack);
+                // A second extractor over the same source lets us read audio
+                // without disturbing the video track position.
+                try {
+                    audio = new MediaExtractor();
+                    audio.setDataSource(videoPath);
+                } catch (Exception e) {
+                    Log.w(TAG, "audio track unavailable: " + e.getMessage());
+                    audio = null;
+                    audioTrack = -1;
+                    audioFormat = null;
+                }
             }
 
             int method = cfg.quality == 2 ? Scaler.METHOD_LANCZOS : Scaler.METHOD_BICUBIC;

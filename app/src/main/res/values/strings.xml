@@ -33,16 +33,20 @@
     <string name="status_ready">Ready. Tap “Start upscaling”.</string>
     <string name="status_starting">Preparing…</string>
     <string name="status_copying">Copying the video…</string>
+    <string name="status_preparing">Analyzing the video…</string>
     <string name="status_saving">Saving to Movies/Video Upscaler…</string>
     <string name="status_done">Done — %1$d × %2$d in %3$s s. Saved to Movies/Video Upscaler.</string>
     <string name="status_cancelled">Cancelled. Nothing was saved.</string>
     <string name="status_cancelling">Cancelling…</string>
     <string name="status_failed">Failed: %1$s</string>
+    <string name="status_failed_title">Could not upscale this video</string>
+    <string name="failure_hint">Hints: try copying the video into the phone\'s own storage first, pick a smaller upscale factor, or select H.264 as the codec.</string>
     <string name="still_working">Please wait for the current job to finish.</string>
 
     <string name="err_no_picker">No file picker available on this device.</string>
     <string name="err_read">Could not read the video: %1$s</string>
     <string name="err_open">Could not open the selected file.</string>
+    <string name="err_empty_file">The selected file is empty or could not be downloaded. Try copying it to internal storage first.</string>
     <string name="err_play">No video player found.</string>
     <string name="err_share">Could not share the file.</string>
 

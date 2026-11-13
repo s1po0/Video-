@@ -33,16 +33,20 @@
     <string name="status_ready">ئامادەیە. کرتە لە «دەستپێکردن» بکە.</string>
     <string name="status_starting">ئامادەکردن…</string>
     <string name="status_copying">کۆپیکردنی ڤیدیۆ…</string>
+    <string name="status_preparing">شیکردنەوەی ڤیدیۆ…</string>
     <string name="status_saving">پاشەکەوتکردن لە Movies/Video Upscaler…</string>
     <string name="status_done">تەواو بوو — %1$d × %2$d لە %3$s چرکە. لە Movies/Video Upscaler پاشەکەوت کرا.</string>
     <string name="status_cancelled">هەڵوەشێنرایەوە. هیچ پاشەکەوت نەکرا.</string>
     <string name="status_cancelling">هەڵوەشاندنەوە…</string>
     <string name="status_failed">سەرکەوتوو نەبوو: %1$s</string>
+    <string name="status_failed_title">نەتوانرا ئەم ڤیدیۆیە باش بکرێت</string>
+    <string name="failure_hint">ئامۆژگاری: سەرەتا ڤیدیۆکە کۆپی بکە بۆ بیرگەی ناوەکی مۆبایل، یان پلەی گەورەکردن کەم بکە، یان H.264 وەک کۆدەک هەڵبژێرە.</string>
     <string name="still_working">تکایە چاوەڕێ بکە تا کارەکە تەواو دەبێت.</string>
 
     <string name="err_no_picker">هیچ بەرنامەیەکی هەڵبژاردنی فایل نییە.</string>
     <string name="err_read">نەتوانرا ڤیدیۆ بخوێندرێتەوە: %1$s</string>
     <string name="err_open">نەتوانرا فایلی هەڵبژێردراو بکرێتەوە.</string>
+    <string name="err_empty_file">فایلەکە بەتاڵە یان نەتوانرا دابەزێنرێت. سەرەتا کۆپی بکە بۆ بیرگەی ناوخۆیی.</string>
     <string name="err_play">هیچ پلەیەرێکی ڤیدیۆ نەدۆزرایەوە.</string>
     <string name="err_share">نەتوانرا فایل هاوبەش بکرێت.</string>
 

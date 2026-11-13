@@ -206,51 +206,40 @@ public class MainActivity extends Activity {
     }
 
     private void runJob(Uri src, VideoEngine.Config cfg) {
-        File cacheCopy = null;
+        File local = null;
         try {
+            // Always work on a local copy: content uris from cloud providers are
+            // pipes without seeking, which makes the media extractor fail with
+            // "Failed to instantiate extractor".
             setProgress(0.01f, getString(R.string.status_copying));
-            try {
-                transcodeAndPublish(src, src, cfg);
-            } catch (VideoEngine.CancelledException ce) {
-                setStatus(getString(R.string.status_cancelled));
-            } catch (Throwable first) {
-                // Some content providers hand out pipes that MediaExtractor cannot
-                // seek in. Copy the video into the cache and retry once.
-                Log.w("MainActivity", "direct read failed: " + first.getMessage());
-                setProgress(0.01f, getString(R.string.status_copying));
-                cacheCopy = copyToCache(src);
-                transcodeAndPublish(Uri.fromFile(cacheCopy), src, cfg);
-            }
+            local = copyToCache(src);
+            setProgress(0.06f, getString(R.string.status_preparing));
+            transcodeAndPublish(local, cfg);
         } catch (VideoEngine.CancelledException ce) {
             setStatus(getString(R.string.status_cancelled));
         } catch (Throwable t) {
-            String msg = t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
+            Log.e("MainActivity", "job failed", t);
+            String msg = t.getMessage() == null ? t.getClass().getName() : t.getMessage();
             setStatus(getString(R.string.status_failed, msg));
+            final String detail = msg;
+            ui.post(() -> new android.app.AlertDialog.Builder(MainActivity.this)
+                    .setTitle(R.string.status_failed_title)
+                    .setMessage(detail + "\n\n" + getString(R.string.failure_hint))
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show());
         } finally {
-            if (cacheCopy != null) //noinspection ResultOfMethodCallIgnored
-                cacheCopy.delete();
+            if (local != null) //noinspection ResultOfMethodCallIgnored
+                local.delete();
             engine = null;
             ui.post(this::resetButtons);
         }
     }
 
-    /** Opens {@code readFrom} for the video/audio streams, but names the result after {@code named}. */
-    private void transcodeAndPublish(Uri readFrom, Uri named, VideoEngine.Config cfg)
-            throws Exception {
-        AssetFileDescriptor videoFd = null;
-        AssetFileDescriptor audioFd = null;
-        File outFile = null;
+    /** Transcodes the local file and publishes the result to Movies. */
+    private void transcodeAndPublish(File input, VideoEngine.Config cfg) throws Exception {
+        File outFile = new File(getCacheDir(), "out_" + System.currentTimeMillis() + ".mp4");
         long t0 = System.currentTimeMillis();
         try {
-            videoFd = getContentResolver().openAssetFileDescriptor(readFrom, "r");
-            if (videoFd == null) throw new Exception(getString(R.string.err_open));
-            if (cfg.copyAudio) {
-                try { audioFd = getContentResolver().openAssetFileDescriptor(readFrom, "r"); }
-                catch (Exception ignored) { audioFd = null; }
-            }
-
-            outFile = new File(getCacheDir(), "out_" + System.currentTimeMillis() + ".mp4");
-
             VideoEngine eng = new VideoEngine(new VideoEngine.Callback() {
                 @Override public void onProgress(float fraction, String detail) {
                     setProgress(0.02f + fraction * 0.92f, detail);
@@ -260,16 +249,15 @@ public class MainActivity extends Activity {
             });
             engine = eng;
 
-            VideoEngine.Result result = eng.transcode(videoFd, audioFd, outFile.getAbsolutePath(), cfg);
+            VideoEngine.Result result = eng.transcode(input.getAbsolutePath(), outFile.getAbsolutePath(), cfg);
 
             setProgress(0.96f, getString(R.string.status_saving));
             Uri published = publish(outFile, sourceName, result.outputWidth, result.outputHeight);
             lastOutput = outFile;
             lastPublished = published;
 
-            double seconds = (System.currentTimeMillis() - t0) / 1000.0;
             final String done = getString(R.string.status_done, result.outputWidth, result.outputHeight,
-                    String.format(Locale.US, "%.0f", seconds));
+                    String.format(Locale.US, "%.0f", (System.currentTimeMillis() - t0) / 1000.0));
             ui.post(() -> {
                 tvStatus.setText(done);
                 progress.setProgress(1000);
@@ -278,9 +266,10 @@ public class MainActivity extends Activity {
                 btnOpen.setEnabled(lastPublished != null || lastOutput != null);
                 btnShare.setEnabled(lastPublished != null || lastOutput != null);
             });
-        } finally {
-            closeQuietly(videoFd);
-            closeQuietly(audioFd);
+        } catch (Exception e) {
+            //noinspection ResultOfMethodCallIgnored
+            outFile.delete();
+            throw e;
         }
     }
 
@@ -289,16 +278,25 @@ public class MainActivity extends Activity {
         File target = new File(getCacheDir(), "input_" + System.currentTimeMillis() + ".mp4");
         InputStream in = getContentResolver().openInputStream(uri);
         if (in == null) throw new Exception(getString(R.string.err_open));
+        long total = sourceSize > 0 ? sourceSize : 0;
+        long copied = 0;
         try (OutputStream out = new FileOutputStream(target)) {
             byte[] buf = new byte[1 << 16];
             int n;
             while ((n = in.read(buf)) > 0) {
                 out.write(buf, 0, n);
+                copied += n;
                 if (!running) throw new VideoEngine.CancelledException();
+                if (total > 0) {
+                    float pct = Math.min(0.99f, copied / (float) total);
+                    setProgress(pct * 0.05f, getString(R.string.status_copying)
+                            + "  " + Math.round(pct * 100) + "%");
+                }
             }
         } finally {
             try { in.close(); } catch (Exception ignored) { }
         }
+        if (copied < 1024) throw new Exception(getString(R.string.err_empty_file));
         return target;
     }
 
