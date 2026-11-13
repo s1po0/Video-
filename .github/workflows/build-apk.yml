@@ -1,0 +1,46 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build signed APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install build-tools and platform
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "build-tools;34.0.0" "platforms;android-34"
+
+      - name: Export tool paths
+        run: |
+          echo "AAPT2=$ANDROID_HOME/build-tools/34.0.0/aapt2" >> $GITHUB_ENV
+          echo "D8=$ANDROID_HOME/build-tools/34.0.0/d8" >> $GITHUB_ENV
+          echo "ZIPALIGN=$ANDROID_HOME/build-tools/34.0.0/zipalign" >> $GITHUB_ENV
+          echo "APKSIGNER=$ANDROID_HOME/build-tools/34.0.0/apksigner" >> $GITHUB_ENV
+          echo "ANDROID_JAR=$ANDROID_HOME/platforms/android-34/android.jar" >> $GITHUB_ENV
+
+      - name: Build APK
+        run: bash ./build-apk.sh
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-upscaler-apk
+          path: build/*.apk
+          if-no-files-found: error

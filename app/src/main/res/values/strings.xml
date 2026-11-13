@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Video Upscaler</string>
+    <string name="tagline">Upscale any video 2× / 3× / 4× on your phone. No internet needed.</string>
+
+    <string name="no_video">No video selected</string>
+    <string name="untitled">Untitled video</string>
+    <string name="pick_video">Choose a video</string>
+
+    <string name="scale">Upscale factor</string>
+    <string name="scale_2x">2× — fast</string>
+    <string name="scale_3x">3× — balanced</string>
+    <string name="scale_4x">4× — maximum</string>
+
+    <string name="quality">Quality profile</string>
+    <string name="q_draft">Draft — quickest</string>
+    <string name="q_balanced">Balanced — recommended</string>
+    <string name="q_best">Best — Lanczos 3, slowest</string>
+
+    <string name="codec">Output codec</string>
+    <string name="codec_auto">Automatic (recommended)</string>
+
+    <string name="sharpen">Detail sharpening: %1$d%%</string>
+    <string name="keep_audio">Keep original audio</string>
+    <string name="output_size">Output resolution: %1$s</string>
+
+    <string name="start">Start upscaling</string>
+    <string name="cancel">Cancel</string>
+    <string name="open">Open</string>
+    <string name="share">Share</string>
+
+    <string name="status_idle">Waiting for a video…</string>
+    <string name="status_ready">Ready. Tap “Start upscaling”.</string>
+    <string name="status_starting">Preparing…</string>
+    <string name="status_copying">Copying the video…</string>
+    <string name="status_saving">Saving to Movies/Video Upscaler…</string>
+    <string name="status_done">Done — %1$d × %2$d in %3$s s. Saved to Movies/Video Upscaler.</string>
+    <string name="status_cancelled">Cancelled. Nothing was saved.</string>
+    <string name="status_cancelling">Cancelling…</string>
+    <string name="status_failed">Failed: %1$s</string>
+    <string name="still_working">Please wait for the current job to finish.</string>
+
+    <string name="err_no_picker">No file picker available on this device.</string>
+    <string name="err_read">Could not read the video: %1$s</string>
+    <string name="err_open">Could not open the selected file.</string>
+    <string name="err_play">No video player found.</string>
+    <string name="err_share">Could not share the file.</string>
+
+    <string name="footer">100% on-device · no uploads · no ads</string>
+</resources>
