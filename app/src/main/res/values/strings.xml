@@ -39,8 +39,10 @@
     <string name="status_idle">Pick a video to begin.</string>
     <string name="status_ready">Ready. Tap “Start upscaling”.</string>
     <string name="status_preparing">Preparing…</string>
-    <string name="status_copying">Copying the video…</string>
     <string name="status_analysing">Analysing the stream…</string>
+    <string name="status_saving">Saving to your gallery…</string>
+    <string name="err_service_start">The background job could not be started. Please try again.</string>
+    <string name="err_bad_output">The output video was written but could not be read back. Try a lower scale or free some storage.</string>
     <string name="status_finalising">Finalising the file…</string>
     <string name="status_done">Done — %1$d × %2$d in %3$s s. Saved to Movies/Video Upscaler.</string>
     <string name="status_cancelled">Cancelled. Nothing was saved.</string>
@@ -57,6 +59,13 @@
     <string name="err_no_space">Not enough free storage to finish this job.</string>
     <string name="err_play">No video player found.</string>
     <string name="err_share">Could not share the file.</string>
+
+    <string name="notif_channel">Upscaling job</string>
+    <string name="notif_channel_desc">Progress of the video being upscaled</string>
+    <string name="notif_title">Upscaling video…</string>
+    <string name="notif_finished">Upscaling finished</string>
+    <string name="background_info">Keeps working when you leave the app. Progress shows in the notification.</string>
+    <string name="job_running_elsewhere">A job is already running in the background.</string>
 
     <string name="footer">100% on-device · no uploads · no ads</string>
 </resources>

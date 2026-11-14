@@ -39,8 +39,10 @@
     <string name="status_idle">ڤیدیۆیەک هەڵبژێرە بۆ دەستپێکردن.</string>
     <string name="status_ready">ئامادەیە. کرتە لە «دەستپێکردن» بکە.</string>
     <string name="status_preparing">ئامادەکردن…</string>
-    <string name="status_copying">کۆپیکردنی ڤیدیۆ…</string>
     <string name="status_analysing">شیکردنەوەی ڤیدیۆ…</string>
+    <string name="status_saving">پاشەکەوت دەکرێت بۆ گەلەری…</string>
+    <string name="err_service_start">کارەکەی پاشەوە نەکرایەوە. تکایە دووبارە هەوڵبدەرەوە.</string>
+    <string name="err_bad_output">ڤیدیۆی ئەنجام نووسرا بەڵام نەخوێندرایەوە. پلەی کەمتر تاقی بکەرەوە یان بیرگە بەتاڵ بکەرەوە.</string>
     <string name="status_finalising">تەواوکردنی فایل…</string>
     <string name="status_done">تەواو بوو — %1$d × %2$d لە %3$s چرکە. لە Movies/Video Upscaler پاشەکەوت کرا.</string>
     <string name="status_cancelled">هەڵوەشێنرایەوە. هیچ پاشەکەوت نەکرا.</string>
@@ -57,6 +59,13 @@
     <string name="err_no_space">بیرگەی بەردەست بەس نییە بۆ تەواوکردنی ئەم کارە.</string>
     <string name="err_play">هیچ پلەیەرێکی ڤیدیۆ نەدۆزرایەوە.</string>
     <string name="err_share">نەتوانرا فایل هاوبەش بکرێت.</string>
+
+    <string name="notif_channel">کاری باشکردن</string>
+    <string name="notif_channel_desc">پێشکەوتنی ڤیدیۆیەکەی باش دەکرێت</string>
+    <string name="notif_title">ڤیدیۆ باش دەکرێت…</string>
+    <string name="notif_finished">باشکردن تەواو بوو</string>
+    <string name="background_info">کاتێک لە ئەپ دەردەچیت کارەکە بەردەوام دەبێت. پێشکەوتن لە ئاگادارکردنەوە دەردەکەوێت.</string>
+    <string name="job_running_elsewhere">کارێک هێشتا لە پاشەوە بەردەوامی هەیە.</string>
 
     <string name="footer">١٠٠٪ لەسەر ئامێر · بێ بارکردن · بێ ڕیکلام</string>
 </resources>

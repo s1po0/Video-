@@ -15,7 +15,6 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
@@ -73,9 +72,11 @@ public class MainActivity extends Activity {
     private int rotation = 0;
     private long fileSizeOnDisk = 0;
 
-    private volatile VideoEngine engine;
-    private Thread worker;
     private boolean running = false;
+    private boolean observing = false;
+    /** True between asking the service to start and seeing it actually run. */
+    private boolean awaitingService = false;
+    private long awaitingSince = 0;
     private PowerManager.WakeLock wakeLock;
     private final Handler ui = new Handler(Looper.getMainLooper());
 
@@ -100,6 +101,60 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         handleIntent(intent);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        restoreLastResult();
+        // Adopt a job that is already running in the background service.
+        if (JobState.running || JobState.finishedAt > 0 || (JobState.error != null && !JobState.error.isEmpty())) {
+            running = JobState.running;
+            if (running) enterRunningUi();
+            startObserving();
+        } else {
+            Ui.disable(btnStart, sourceUri == null);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // The service keeps working; we simply stop polling to save battery.
+        if (isFinishing()) stopObserving();
+    }
+
+    @Override
+    protected void onDestroy() {
+        stopObserving();
+        super.onDestroy();
+    }
+
+    /** Brings back the last finished video after the app (or the process) was killed. */
+    private void restoreLastResult() {
+        if (lastOutput != null || lastPublished != null) return;
+        android.content.SharedPreferences p =
+                getSharedPreferences(UpscaleService.PREFS, MODE_PRIVATE);
+        String uri = p.getString(UpscaleService.K_URI, null);
+        String path = p.getString(UpscaleService.K_PATH, null);
+        String msg = p.getString(UpscaleService.K_MSG, null);
+        if (uri == null && path == null) return;
+
+        if (uri != null) lastPublished = Uri.parse(uri);
+        if (path != null) {
+            File f = new File(path);
+            if (f.exists()) lastOutput = f;
+        }
+        if (lastPublished == null && lastOutput == null) return;
+
+        if (!running) {
+            btnOpen.setEnabled(true);
+            btnShare.setEnabled(true);
+            actionRow.setVisibility(View.VISIBLE);
+            progress.setProgress(1000);
+            tvPercent.setText("100%");
+            if (msg != null && !msg.isEmpty()) tvStatus.setText(msg);
+        }
     }
 
     private void handleIntent(Intent intent) {
@@ -157,7 +212,7 @@ public class MainActivity extends Activity {
         row.addView(titles, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView badge = Ui.text(this, "v1.1", 11f, Ui.ACCENT, true);
+        TextView badge = Ui.text(this, "v1.2", 11f, Ui.ACCENT, true);
         badge.setPadding(Ui.dp(this, 10), Ui.dp(this, 5), Ui.dp(this, 10), Ui.dp(this, 5));
         GradientDrawable pill = Ui.rounded(this, 0x1F4CC4FF, 30);
         pill.setStroke(Ui.dp(this, 1), 0x404CC4FF);
@@ -330,6 +385,12 @@ public class MainActivity extends Activity {
         Ui.disable(btnStart, true);
         btnStart.setOnClickListener(v -> startJob());
         card.addView(btnStart);
+
+        TextView bgHint = Ui.text(this, getString(R.string.background_info), 11.5f,
+                Ui.TEXT_FAINT, false);
+        bgHint.setGravity(Gravity.CENTER);
+        bgHint.setPadding(0, Ui.dp(this, 10), 0, 0);
+        card.addView(bgHint);
 
         // progress block (hidden until a job runs)
         LinearLayout runningBox = Ui.column(this);
@@ -537,19 +598,37 @@ public class MainActivity extends Activity {
 
     private void startJob() {
         if (running || sourceUri == null) return;
-
-        final VideoEngine.Config cfg = new VideoEngine.Config();
-        cfg.scale = scaleIndex + 1;
-        cfg.quality = qualityIndex;
-        cfg.sharpen = sbSharpen.getProgress();
-        cfg.codec = spCodec.getSelectedItemPosition();
-        cfg.copyAudio = swAudio.isChecked() && !swTrim.isChecked();
-        cfg.rotationDegrees = rotation;
-        final Uri src = sourceUri;
+        if (UpscaleService.isRunning()) {
+            toast(getString(R.string.job_running_elsewhere));
+            return;
+        }
 
         purgeTempFiles();
 
+        Intent job = UpscaleService.jobIntent(this, sourceUri, sourceName, sourceSize,
+                scaleIndex + 1, qualityIndex, sbSharpen.getProgress(),
+                spCodec.getSelectedItemPosition(),
+                swAudio.isChecked() && !swTrim.isChecked(), rotation);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(job);
+        } else {
+            startService(job);
+        }
+
         running = true;
+        awaitingService = true;
+        awaitingSince = System.currentTimeMillis();
+        enterRunningUi();
+        startObserving();
+    }
+
+    private void cancelJob() {
+        UpscaleService.cancelFromAnywhere();
+        Ui.disable(btnCancel, true);
+        setStatus(getString(R.string.status_cancelling));
+    }
+
+    private void enterRunningUi() {
         Ui.disable(btnStart, true);
         Ui.disable(btnPick, true);
         btnCancel.setVisibility(View.VISIBLE);
@@ -559,228 +638,115 @@ public class MainActivity extends Activity {
         tvPercent.setText("0%");
         tvEta.setText("");
         setStatus(getString(R.string.status_preparing));
-        if (wakeLock != null) wakeLock.acquire(6 * 60 * 60 * 1000L);
-
-        worker = new Thread(() -> runJob(src, cfg), "upscale-job");
-        worker.start();
     }
 
-    private void cancelJob() {
-        VideoEngine e = engine;
-        if (e != null) e.requestCancel();
-        Ui.disable(btnCancel, true);
-        setStatus(getString(R.string.status_cancelling));
-    }
+    // ---- observe the background service ----
 
-    private void runJob(Uri src, VideoEngine.Config cfg) {
-        File local = null;
-        try {
-            setProgress(0.005f, getString(R.string.status_copying), -1);
-            local = copyToCache(src);
-            fileSizeOnDisk = local.length();
-            setProgress(0.03f, getString(R.string.status_analysing), -1);
-            transcodeAndPublish(local, cfg);
-        } catch (VideoEngine.CancelledException ce) {
-            setStatus(getString(R.string.status_cancelled));
-            ui.post(() -> actionRow.setVisibility(View.GONE));
-        } catch (Throwable t) {
-            Log.e("MainActivity", "job failed", t);
-            fail(t);
-        } finally {
-            if (local != null) //noinspection ResultOfMethodCallIgnored
-                local.delete();
-            engine = null;
-            ui.post(this::resetButtons);
+    private final Runnable poller = new Runnable() {
+        @Override
+        public void run() {
+            if (!observing) return;
+            syncFromJobState();
+            ui.postDelayed(this, 350);
         }
+    };
+
+    private void startObserving() {
+        if (observing) return;
+        observing = true;
+        ui.post(poller);
     }
 
-    private void fail(Throwable t) {
-        final String msg = t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
-        setStatus(getString(R.string.status_failed, msg));
-        ui.post(() -> {
-            if (isFinishing()) return;
-            new AlertDialog.Builder(MainActivity.this)
-                    .setTitle(R.string.status_failed_title)
-                    .setMessage(msg + "\n\n" + getString(R.string.failure_hint))
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show();
-        });
+    private void stopObserving() {
+        observing = false;
+        ui.removeCallbacks(poller);
     }
 
-    private void transcodeAndPublish(File input, VideoEngine.Config cfg) throws Exception {
-        long t0 = System.currentTimeMillis();
-        long durationUs = Math.max(1, durationMs * 1000L);
+    /** Mirrors {@link JobState} into the widgets; called ~3× per second. */
+    private void syncFromJobState() {
+        boolean busy = JobState.running;
 
-        // Create the destination first so we can stream straight into it: a
-        // 2-hour movie never needs a second full-size temp file.
-        Destination dest = openDestination();
-        if (dest == null) throw new Exception(getString(R.string.err_no_space));
-        File written = dest.file;
-        try {
-            VideoEngine eng = new VideoEngine(new VideoEngine.Callback() {
-                @Override public void onProgress(float fraction, String detail, long etaMs) {
-                    setProgress(0.03f + fraction * 0.94f, detail, etaMs);
-                }
-            });
-            engine = eng;
-
-            VideoEngine.Result result = eng.transcode(input.getAbsolutePath(),
-                    written.getAbsolutePath(), dest.pfd, cfg);
-
-            if (dest.pfd != null) {
-                try { dest.pfd.close(); } catch (Exception ignored) { }
-                dest.pfd = null;
+        if (awaitingService) {
+            if (busy) {
+                awaitingService = false;
+            } else if (System.currentTimeMillis() - awaitingSince < 4000) {
+                return; // the service has not picked the job up yet
+            } else {
+                awaitingService = false;
+                running = false;
+                tvStatus.setText(getString(R.string.status_failed,
+                        getString(R.string.err_service_start)));
+                Ui.disable(btnStart, sourceUri == null);
+                Ui.disable(btnPick, false);
+                btnCancel.setVisibility(View.GONE);
+                return;
             }
-            setProgress(0.985f, getString(R.string.status_finalising), -1);
-            Uri published = dest.publish(written, sourceName, result.outputWidth, result.outputHeight);
-            lastOutput = written;
-            lastPublished = published;
+        }
 
-            final String done = getString(R.string.status_done,
-                    result.outputWidth, result.outputHeight,
-                    String.format(Locale.US, "%.0f", (System.currentTimeMillis() - t0) / 1000.0));
-            final boolean reduced = result.scaleReduced;
-            ui.post(() -> {
-                tvStatus.setText(done);
-                if (reduced) {
-                    tvStatus.setText(done + "\n"
-                            + getString(R.string.scale_limited, result.outputWidth + "×" + result.outputHeight));
-                }
+        if (busy && !running) {
+            // A job was started earlier (or before rotation): adopt it.
+            running = true;
+            enterRunningUi();
+        }
+
+        progress.setProgress(Math.round(JobState.fraction * 1000));
+        tvPercent.setText(Math.round(JobState.fraction * 100) + "%");
+        tvEta.setText(JobState.etaLabel == null ? "" : JobState.etaLabel);
+        if (JobState.status != null && !JobState.status.isEmpty()) {
+            tvStatus.setText(JobState.status);
+        }
+        if (JobState.detail != null && !JobState.detail.isEmpty() && busy) {
+            tvStatus.setText(JobState.detail);
+        }
+
+        if (!busy && running) {
+            // job ended – show the outcome
+            running = false;
+            Ui.disable(btnStart, sourceUri == null);
+            Ui.disable(btnPick, false);
+            btnCancel.setVisibility(View.GONE);
+            if (JobState.error != null && !JobState.error.isEmpty()) {
+                tvStatus.setText(getString(R.string.status_failed, JobState.error));
+                showFailureDialog(JobState.error);
+            } else if (JobState.cancelled) {
+                tvStatus.setText(getString(R.string.status_cancelled));
+                tvEta.setText("");
+                JobState.cancelled = false;
+                JobState.finishedAt = 0;
+            } else if (JobState.finishedAt > 0) {
+                // finished successfully
+                if (JobState.resultMessage != null) tvStatus.setText(JobState.resultMessage);
                 progress.setProgress(1000);
                 tvPercent.setText("100%");
                 tvEta.setText("");
                 actionRow.setVisibility(View.VISIBLE);
+                if (JobState.outputPath != null) lastOutput = new File(JobState.outputPath);
+                lastPublished = JobState.publishedUri;
                 btnOpen.setEnabled(lastPublished != null || lastOutput != null);
                 btnShare.setEnabled(lastPublished != null || lastOutput != null);
-            });
-        } catch (Throwable e) {
-            if (dest.pfd != null) {
-                try { dest.pfd.close(); } catch (Exception ignored) { }
-                dest.pfd = null;
-            }
-            dest.abort();
-            throw e;
-        }
-    }
-
-    private void resetButtons() {
-        running = false;
-        Ui.disable(btnStart, sourceUri == null);
-        Ui.disable(btnPick, false);
-        btnCancel.setVisibility(View.GONE);
-        if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
-    }
-
-    // --------------------------------------------------------- destinations --
-
-    /**
-     * A place to write the result: either MediaStore (Android 10+, streamed
-     * through a descriptor) or a real file in Movies for older versions.
-     */
-    private final class Destination {
-        File file;
-        ParcelFileDescriptor pfd;
-        Uri pendingUri;
-
-        Uri publish(File written, String originalName, int w, int h) {
-            if (pendingUri == null) return Uri.fromFile(written);
-            ContentValues done = new ContentValues();
-            done.put(MediaStore.Video.Media.IS_PENDING, 0);
-            getContentResolver().update(pendingUri, done, null, null);
-            return pendingUri;
-        }
-
-        void abort() {
-            if (pendingUri != null) {
-                try { getContentResolver().delete(pendingUri, null, null); } catch (Exception ignored) { }
-            } else if (file != null && file.exists()) {
-                //noinspection ResultOfMethodCallIgnored
-                file.delete();
+                long seen = JobState.finishedAt;
+                if (seen != 0) JobState.finishedAt = 0; // consume
             }
         }
+
+        if (!busy && !running) {
+            // keep the buttons sane when idle
+            Ui.disable(btnStart, sourceUri == null);
+        }
     }
 
-    private Destination openDestination() throws Exception {
-        String base = sourceName == null || sourceName.isEmpty() ? "video" : sourceName;
-        int dot = base.lastIndexOf('.');
-        if (dot > 0) base = base.substring(0, dot);
-        String name = base + "_upscaled.mp4";
-
-        Destination d = new Destination();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ContentValues v = new ContentValues();
-            v.put(MediaStore.Video.Media.DISPLAY_NAME, name);
-            v.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
-            v.put(MediaStore.Video.Media.RELATIVE_PATH,
-                    Environment.DIRECTORY_MOVIES + "/Video Upscaler");
-            v.put(MediaStore.Video.Media.IS_PENDING, 1);
-            Uri item = getContentResolver().insert(
-                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI, v);
-            if (item == null) return null;
-            d.pendingUri = item;
-            d.pfd = getContentResolver().openFileDescriptor(item, "rw");
-            // MediaMuxer streams into the descriptor on API 26+, so no temp file
-            // is needed; on older devices we still fall back to one.
-            d.file = new File(getCacheDir(), "stream_" + System.currentTimeMillis() + ".mp4");
-            return d;
-        }
-
-        File dir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_MOVIES), "Video Upscaler");
-        if (!dir.exists() && !dir.mkdirs()) return null;
-        d.file = uniqueFile(dir, name);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Streaming to a descriptor is only possible with a real file.
-            d.pfd = ParcelFileDescriptor.open(d.file,
-                    ParcelFileDescriptor.MODE_CREATE | ParcelFileDescriptor.MODE_READ_WRITE
-                            | ParcelFileDescriptor.MODE_TRUNCATE);
-        }
-        return d;
-    }
-
-    private static File uniqueFile(File dir, String name) {
-        File f = new File(dir, name);
-        if (!f.exists()) return f;
-        int dot = name.lastIndexOf('.');
-        String stem = dot > 0 ? name.substring(0, dot) : name;
-        String ext = dot > 0 ? name.substring(dot) : "";
-        for (int i = 2; i < 1000; i++) {
-            f = new File(dir, stem + "_" + i + ext);
-            if (!f.exists()) return f;
-        }
-        return new File(dir, System.currentTimeMillis() + ext);
+    private void showFailureDialog(String msg) {
+        String detail = msg;
+        JobState.error = ""; // consume
+        if (isFinishing()) return;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.status_failed_title)
+                .setMessage(detail + "\n\n" + getString(R.string.failure_hint))
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
     }
 
     // ------------------------------------------------------------- file i/o ---
-
-    private File copyToCache(Uri uri) throws Exception {
-        File target = new File(getCacheDir(), "input_" + System.currentTimeMillis() + ".mp4");
-        InputStream in = getContentResolver().openInputStream(uri);
-        if (in == null) throw new Exception(getString(R.string.err_open));
-        long total = sourceSize > 0 ? sourceSize : 0;
-        long copied = 0;
-        long free = freeSpace();
-        try (OutputStream out = new FileOutputStream(target)) {
-            byte[] buf = new byte[1 << 16];
-            int n;
-            while ((n = in.read(buf)) > 0) {
-                out.write(buf, 0, n);
-                copied += n;
-                if (!running) throw new VideoEngine.CancelledException();
-                if (total > 0) {
-                    setProgress(0.005f + Math.min(0.025f, copied / (float) total * 0.025f),
-                            getString(R.string.status_copying), -1);
-                }
-                if (free > 0 && copied > free * MAX_FREE_RATIO / 100) {
-                    throw new Exception(getString(R.string.err_no_space));
-                }
-            }
-        } finally {
-            try { in.close(); } catch (Exception ignored) { }
-        }
-        if (copied < 1024) throw new Exception(getString(R.string.err_empty_file));
-        return target;
-    }
 
     private long freeSpace() {
         try {

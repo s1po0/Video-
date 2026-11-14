@@ -6,17 +6,17 @@ An Android video upscaler: **2× / 3× / 4× any video on the device**, 100 % of
 
 ---
 
-## ⬇️ داونلۆدکردنی APK — وەشان ١.١.٠
+## ⬇️ داونلۆدکردنی APK — وەشان ١.٢.٠
 
-### 👉 [**Google Drive — داونلۆدی ڕاستەوخۆ**](https://drive.google.com/uc?id=19UHWBZz7nKAJo8CeFpji5YZH9jcOrptk&export=download)
+### 👉 [**Google Drive — داونلۆدی ڕاستەوخۆ**](https://drive.google.com/uc?id=1mHfIxTOVwH7-xdjeTIVjz2NqST6iRHBa&export=download)
 
 | سەرچاوە | لینک |
 |---|---|
-| 📥 **Google Drive** | [VideoUpscaler-1.1.0.apk](https://drive.google.com/uc?id=19UHWBZz7nKAJo8CeFpji5YZH9jcOrptk&export=download) |
-| ☁️ **Dropbox** | [VideoUpscaler-1.1.0.apk](https://www.dropbox.com/scl/fi/j2fyylqn1efuohz58ca2k/VideoUpscaler-1.1.0.apk?rlkey=6opr8jc8fi5kno01h8bb2rj31&dl=1) |
-| 🐙 **GitHub** (خام) | [VideoUpscaler-1.1.0.apk](https://github.com/s1po0/Video-/raw/arena/50215008-video/VideoUpscaler-1.1.0.apk) |
+| 📥 **Google Drive** | [VideoUpscaler-1.2.0.apk](https://drive.google.com/uc?id=1mHfIxTOVwH7-xdjeTIVjz2NqST6iRHBa&export=download) |
+| ☁️ **Dropbox** | [VideoUpscaler-1.2.0.apk](https://www.dropbox.com/scl/fi/wzs9otiu43cde6w03yjqs/VideoUpscaler-1.2.0.apk?rlkey=ht03d3ff12dqduhyys75e7sjl&dl=1) |
+| 🐙 **GitHub** (خام) | [VideoUpscaler-1.2.0.apk](https://github.com/s1po0/Video-/raw/arena/50215008-video/VideoUpscaler-1.2.0.apk) |
 
-٥٣ کیلۆبایت · Android 7.0+ · ئیمزاکراو (v2+v3)
+٦١ کیلۆبایت · Android 7.0+ · ئیمزاکراو (v2+v3)
 
 ### دامەزراندن
 1. لە لینکەکەوە فایلی `.apk` دابەزێنە
@@ -34,7 +34,22 @@ source .tools/env.sh
 
 ---
 
-## 🆕 چی نوێیە لە ١.١.٠
+## 🆕 چی نوێیە لە ١.٢.٠
+
+**کار لە پاشەوە (Background) بەردەوام دەبێت** ⭐
+- کارەکە ئێستا لە **Foreground Service** (`UpscaleService`) دا دەکەوێت، نەک لە ناو Activity
+- دەتوانیت لە ئەپ دەربچیت، شاشە قفڵ بکەیت، یان ئەپی تر بکەیتەوە — **باشکردنەکە بەردەوام دەبێت**
+- **ئاگادارکردنەوەی هەمیشەیی** لە شریتی ئاگادارکردنەوە: ٪، کاتی ماوە، و دوگمەی **پاشگەزبوونەوە**
+- کاتێک گەڕایتەوە بۆ ئەپ، هەموو شتێک لە شوێنی خۆی دەبێت (ئەگەر کارەکە تەواو بووبێت، ئەنجامەکە پیشان دەدرێت)
+- `WakeLock` ی ٨ کاتژمێر بۆ ئەوەی سیستەم کارەکە نەکوژێت
+
+**چاککردنی ئەنجام** 🐞
+- ڤیدیۆی ئەنجام ئێستا لە کاش نووسرێت و پاشان بە سەلامەتی کۆپی دەکرێتە گەلەری —
+  ئەمە کێشەی "ڤیدیۆیەکە نەخوێندرایەوە / بەتاڵ بوو" چاک دەکات
+- پشکنینی قەبارەی ئەنجام پێش پێناسەکردنی وەک سەرکەوتوو
+- ناوی ئەنجامەکە دەگەڕێتەوە لە دوای کوژرانی پرۆسێس (دوگمەی **کردنەوە** / **هاوبەشکردن** هەر کار دەکات)
+
+## 🕘 چی نوێیە لە ١.١.٠
 
 **ڕووکار (UI/UX) بە تەواوی نوێکرایەوە**
 - دیزاینی تاریکی نوێ بە ڕەنگی شین-مۆر (aurora)، کارتی خڕ، سێبەری نەرم
