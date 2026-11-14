@@ -19,8 +19,8 @@ import java.nio.ByteBuffer;
  *
  * <p>Built for long movies as well as short clips:
  * <ul>
- *   <li>the finished file is written <b>directly</b> to its destination descriptor,
- *       so a 2-hour job never needs double the disk space (no temp copy);</li>
+ *   <li>when a destination descriptor is supplied the finished file is written
+ *       straight into it, so a 2-hour job never needs double the disk space;</li>
  *   <li>timestamps are forced to be strictly increasing, which keeps the muxer
  *       happy with B-frame reordered streams;</li>
  *   <li>the requested upscale is clamped to what the device's encoder can handle
@@ -79,9 +79,30 @@ final class VideoEngine {
         cancelRequested = true;
     }
 
+    private long lastTempCheck = 0;
+    private boolean tooHot = false;
+
     private void checkCancel() throws CancelledException {
         if (cancelRequested || Thread.currentThread().isInterrupted()) throw new CancelledException();
+        long now = System.currentTimeMillis();
+        if (now - lastTempCheck > 5000) {
+            lastTempCheck = now;
+            if (thermalProbe != null) {
+                try {
+                    int status = thermalProbe.thermalStatus();
+                    if (status >= android.os.PowerManager.THERMAL_STATUS_SEVERE) tooHot = true;
+                } catch (Exception ignored) { }
+            }
+        }
+        if (tooHot) throw new CancelledException();
     }
+
+    /** Optional thermal probe supplied by the service; returns a THERMAL_STATUS_* value. */
+    interface ThermalProbe {
+        int thermalStatus();
+    }
+
+    ThermalProbe thermalProbe;
 
     // ------------------------------------------------------------------ run --
 
@@ -182,7 +203,7 @@ final class VideoEngine {
             }
 
             int method = cfg.quality == 2 ? Scaler.METHOD_LANCZOS : Scaler.METHOD_BICUBIC;
-            int threads = Math.max(2, Runtime.getRuntime().availableProcessors() - 1);
+            int threads = Device.scaleThreads();
             scaler = new Scaler(method, threads);
             float sharpenAmount = Math.max(0, Math.min(100, cfg.sharpen)) / 100f;
 

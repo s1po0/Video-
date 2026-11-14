@@ -126,6 +126,8 @@ public class UpscaleService extends Service {
         boolean audio = intent.getBooleanExtra(EXTRA_AUDIO, true);
         int rotation = intent.getIntExtra(EXTRA_ROTATION, 0);
 
+        Device.init(this);
+
         JobState.reset();
         JobState.running = true;
         JobState.fileName = name == null ? "" : name;
@@ -155,12 +157,13 @@ public class UpscaleService extends Service {
             transcodeAndPublish(local, cfg, name);
 
         } catch (VideoEngine.CancelledException ce) {
+            boolean hot = isTooHot();
             JobState.running = false;
-            JobState.status = getString(R.string.status_cancelled);
+            JobState.status = getString(hot ? R.string.status_too_hot : R.string.status_cancelled);
             JobState.error = "";
             JobState.cancelled = true;
             JobState.finishedAt = System.currentTimeMillis();
-            notifyFinished(getString(R.string.status_cancelled), false);
+            notifyFinished(JobState.status, false);
         } catch (Throwable t) {
             Log.e(TAG, "job failed", t);
             String msg = t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
@@ -205,6 +208,12 @@ public class UpscaleService extends Service {
                 }
             });
             engine = eng;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                eng.thermalProbe = () -> {
+                    PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+                    return pm == null ? 0 : pm.getCurrentThermalStatus();
+                };
+            }
 
             // The encoder always writes to an ordinary cache file first. Writing
             // straight into a MediaStore file descriptor produces empty/unreadable
@@ -518,6 +527,12 @@ public class UpscaleService extends Service {
         try {
             nm.notify(NOTIFICATION_ID + 1, b.build());
         } catch (Exception ignored) { }
+    }
+
+    private boolean isTooHot() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false;
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        return pm != null && pm.getCurrentThermalStatus() >= PowerManager.THERMAL_STATUS_SEVERE;
     }
 
     // ------------------------------------------------------- last result ----

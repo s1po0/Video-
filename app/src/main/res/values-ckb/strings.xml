@@ -41,11 +41,15 @@
     <string name="status_preparing">ئامادەکردن…</string>
     <string name="status_analysing">شیکردنەوەی ڤیدیۆ…</string>
     <string name="status_saving">پاشەکەوت دەکرێت بۆ گەلەری…</string>
+    <string name="before">پێش</string>
+    <string name="after">دوای</string>
+    <string name="show_folder">پیشاندان لە گەلەری</string>
     <string name="err_service_start">کارەکەی پاشەوە نەکرایەوە. تکایە دووبارە هەوڵبدەرەوە.</string>
     <string name="err_bad_output">ڤیدیۆی ئەنجام نووسرا بەڵام نەخوێندرایەوە. پلەی کەمتر تاقی بکەرەوە یان بیرگە بەتاڵ بکەرەوە.</string>
     <string name="status_finalising">تەواوکردنی فایل…</string>
     <string name="status_done">تەواو بوو — %1$d × %2$d لە %3$s چرکە. لە Movies/Video Upscaler پاشەکەوت کرا.</string>
     <string name="status_cancelled">هەڵوەشێنرایەوە. هیچ پاشەکەوت نەکرا.</string>
+    <string name="status_too_hot">مۆبایلەکە زۆر گەرم بوو، بۆیە کارەکە ڕاگیرا بۆ پاراستنی. بەهێڵێ و پلەیەکی کەمتر تاقی بکەرەوە.</string>
     <string name="status_cancelling">هەڵوەشاندنەوە…</string>
     <string name="status_failed">سەرکەوتوو نەبوو: %1$s</string>
     <string name="status_failed_title">نەتوانرا ئەم ڤیدیۆیە باش بکرێت</string>

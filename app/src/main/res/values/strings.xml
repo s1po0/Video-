@@ -41,11 +41,15 @@
     <string name="status_preparing">Preparing…</string>
     <string name="status_analysing">Analysing the stream…</string>
     <string name="status_saving">Saving to your gallery…</string>
+    <string name="before">BEFORE</string>
+    <string name="after">AFTER</string>
+    <string name="show_folder">Show in gallery</string>
     <string name="err_service_start">The background job could not be started. Please try again.</string>
     <string name="err_bad_output">The output video was written but could not be read back. Try a lower scale or free some storage.</string>
     <string name="status_finalising">Finalising the file…</string>
     <string name="status_done">Done — %1$d × %2$d in %3$s s. Saved to Movies/Video Upscaler.</string>
     <string name="status_cancelled">Cancelled. Nothing was saved.</string>
+    <string name="status_too_hot">The phone got too hot, so the job was stopped to protect it. Let it cool down and try a smaller scale.</string>
     <string name="status_cancelling">Cancelling…</string>
     <string name="status_failed">Failed: %1$s</string>
     <string name="status_failed_title">Could not upscale this video</string>

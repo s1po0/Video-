@@ -49,13 +49,17 @@ public class MainActivity extends Activity {
 
     // ---- views ----
     private TextView tvFileName, tvFileMeta, tvStatus, tvPercent, tvEta, tvEstimate, tvSharpenVal;
-    private TextView btnPick, btnStart, btnCancel, btnOpen, btnShare;
+    private TextView btnPick, btnStart, btnCancel, btnOpen, btnShare, btnFolder;
     private ProgressBar progress;
     private SeekBar sbSharpen;
     private Spinner spCodec;
     private Ui.SwitchRow swAudio, swTrim;
     private LinearLayout chipRowScale, chipRowQuality, actionRow, pickRow, heroCard;
     private ImageView thumb;
+    private ImageView cmpBefore, cmpAfter;
+    private LinearLayout previewBox;
+    private Thread previewThread;
+    private File previewCache;
     private View progressCard;
 
     private final Ui.Chip[] scaleChips = new Ui.Chip[3];
@@ -150,6 +154,7 @@ public class MainActivity extends Activity {
         if (!running) {
             btnOpen.setEnabled(true);
             btnShare.setEnabled(true);
+            if (btnFolder != null) btnFolder.setEnabled(true);
             actionRow.setVisibility(View.VISIBLE);
             progress.setProgress(1000);
             tvPercent.setText("100%");
@@ -280,6 +285,7 @@ public class MainActivity extends Activity {
                 scaleIndex = index;
                 syncChips();
                 refreshEstimate();
+                refreshPreview();
             });
             scaleChips[i] = chip;
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
@@ -304,6 +310,7 @@ public class MainActivity extends Activity {
                 qualityIndex = index;
                 syncChips();
                 refreshEstimate();
+                refreshPreview();
             });
             qualityChips[i] = chip;
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
@@ -334,7 +341,7 @@ public class MainActivity extends Activity {
                 tvSharpenVal.setText(value + "%");
             }
             @Override public void onStartTrackingTouch(SeekBar s) { }
-            @Override public void onStopTrackingTouch(SeekBar s) { }
+            @Override public void onStopTrackingTouch(SeekBar s) { refreshPreview(); }
         });
         card.addView(sbSharpen);
 
@@ -425,6 +432,37 @@ public class MainActivity extends Activity {
         cancelLp.topMargin = Ui.dp(this, 12);
         runningBox.addView(btnCancel, cancelLp);
 
+        previewBox = Ui.column(this);
+        previewBox.setVisibility(View.GONE);
+        LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        previewLp.topMargin = Ui.dp(this, 16);
+        runningBox.addView(previewBox, previewLp);
+
+        LinearLayout cmpRow = Ui.row(this);
+        cmpBefore = comparisonImage();
+        cmpAfter = comparisonImage();
+        LinearLayout.LayoutParams half = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        half.rightMargin = Ui.dp(this, 6);
+        cmpRow.addView(cmpBefore, half);
+        LinearLayout.LayoutParams half2 = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        half2.leftMargin = Ui.dp(this, 6);
+        cmpRow.addView(cmpAfter, half2);
+        previewBox.addView(cmpRow);
+
+        LinearLayout capRow = Ui.row(this);
+        TextView capBefore = Ui.text(this, getString(R.string.before), 10.5f, Ui.TEXT_FAINT, false);
+        capBefore.setGravity(Gravity.CENTER);
+        capRow.addView(capBefore, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView capAfter = Ui.text(this, getString(R.string.after), 10.5f, Ui.ACCENT, true);
+        capAfter.setGravity(Gravity.CENTER);
+        capRow.addView(capAfter, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        previewBox.addView(capRow);
+
         actionRow = Ui.row(this);
         actionRow.setVisibility(View.GONE);
         actionRow.setPadding(0, Ui.dp(this, 16), 0, 0);
@@ -436,7 +474,13 @@ public class MainActivity extends Activity {
         actionRow.addView(btnOpen, openLp);
         btnShare = Ui.secondaryButton(this, getString(R.string.share));
         btnShare.setOnClickListener(v -> shareLast());
-        actionRow.addView(btnShare, new LinearLayout.LayoutParams(0,
+        LinearLayout.LayoutParams shareLp = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        shareLp.rightMargin = Ui.dp(this, 8);
+        actionRow.addView(btnShare, shareLp);
+        btnFolder = Ui.secondaryButton(this, getString(R.string.show_folder));
+        btnFolder.setOnClickListener(v -> showInFolder());
+        actionRow.addView(btnFolder, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         card.addView(actionRow);
 
@@ -450,6 +494,48 @@ public class MainActivity extends Activity {
         line.setGravity(Gravity.CENTER);
         col.addView(line);
         return col;
+    }
+
+    private ImageView comparisonImage() {
+        ImageView v = new ImageView(this);
+        v.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        GradientDrawable frame = Ui.rounded(this, 0xFF111827, 12);
+        frame.setStroke(Ui.dp(this, 1), 0x33FFFFFF);
+        v.setBackground(frame);
+        v.setClipToOutline(true);
+        return v;
+    }
+
+    /** Rebuilds the before/after sample whenever the user changes scale/quality. */
+    private void refreshPreview() {
+        if (sourceUri == null || previewBox == null) return;
+        if (previewThread != null && previewThread.isAlive()) return;
+
+        final int scale = scaleIndex + 1;
+        final int quality = qualityIndex;
+        final int sharpen = sbSharpen.getProgress();
+        final Uri uri = sourceUri;
+
+        previewThread = new Thread(() -> {
+            Preview.Shot shot = null;
+            try {
+                shot = Preview.build(getApplicationContext(), uri, scale, quality, sharpen);
+            } catch (Throwable ignored) {
+            }
+
+            final Preview.Shot result = shot;
+            runOnUiThread(() -> {
+                if (result == null) {
+                    previewBox.setVisibility(View.GONE);
+                    return;
+                }
+                cmpBefore.setImageBitmap(result.before);
+                cmpAfter.setImageBitmap(result.after);
+                previewBox.setVisibility(View.VISIBLE);
+            });
+        }, "preview");
+        previewThread.setPriority(Thread.MIN_PRIORITY);
+        previewThread.start();
     }
 
     private void syncChips() {
@@ -535,6 +621,7 @@ public class MainActivity extends Activity {
         Ui.disable(btnStart, false);
         actionRow.setVisibility(View.GONE);
         refreshEstimate();
+        refreshPreview();
         setStatus(getString(R.string.status_ready));
     }
 
@@ -637,6 +724,7 @@ public class MainActivity extends Activity {
         progress.setProgress(0);
         tvPercent.setText("0%");
         tvEta.setText("");
+        if (previewBox != null) previewBox.setVisibility(View.GONE);
         setStatus(getString(R.string.status_preparing));
     }
 
@@ -722,8 +810,10 @@ public class MainActivity extends Activity {
                 actionRow.setVisibility(View.VISIBLE);
                 if (JobState.outputPath != null) lastOutput = new File(JobState.outputPath);
                 lastPublished = JobState.publishedUri;
-                btnOpen.setEnabled(lastPublished != null || lastOutput != null);
-                btnShare.setEnabled(lastPublished != null || lastOutput != null);
+                boolean have = lastPublished != null || lastOutput != null;
+                btnOpen.setEnabled(have);
+                btnShare.setEnabled(have);
+                if (btnFolder != null) btnFolder.setEnabled(have);
                 long seen = JobState.finishedAt;
                 if (seen != 0) JobState.finishedAt = 0; // consume
             }
@@ -775,6 +865,26 @@ public class MainActivity extends Activity {
             Intent i = new Intent(Intent.ACTION_VIEW);
             i.setDataAndType(uri, "video/mp4");
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(i);
+        } catch (Exception e) {
+            toast(getString(R.string.err_play));
+        }
+    }
+
+    /** Opens the gallery / file manager at the finished video. */
+    private void showInFolder() {
+        Uri uri = shareableUri();
+        if (uri == null) {
+            toast(getString(R.string.err_play));
+            return;
+        }
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, "video/*");
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            if (lastOutput != null) {
+                i.putExtra("android.intent.extra.STREAM", Uri.fromFile(lastOutput));
+            }
             startActivity(i);
         } catch (Exception e) {
             toast(getString(R.string.err_play));

@@ -8,15 +8,15 @@ An Android video upscaler: **2× / 3× / 4× any video on the device**, 100 % of
 
 ## ⬇️ داونلۆدکردنی APK — وەشان ١.٢.٠
 
-### 👉 [**Google Drive — داونلۆدی ڕاستەوخۆ**](https://drive.google.com/uc?id=1mHfIxTOVwH7-xdjeTIVjz2NqST6iRHBa&export=download)
+### 👉 [**Google Drive — داونلۆدی ڕاستەوخۆ**](https://drive.google.com/uc?id=15QehJT3kv70Y9qjI1NInzCMkQn3WuzCb&export=download)
 
 | سەرچاوە | لینک |
 |---|---|
-| 📥 **Google Drive** | [VideoUpscaler-1.2.0.apk](https://drive.google.com/uc?id=1mHfIxTOVwH7-xdjeTIVjz2NqST6iRHBa&export=download) |
+| 📥 **Google Drive** | [VideoUpscaler-1.2.0.apk](https://drive.google.com/uc?id=15QehJT3kv70Y9qjI1NInzCMkQn3WuzCb&export=download) |
 | ☁️ **Dropbox** | [VideoUpscaler-1.2.0.apk](https://www.dropbox.com/scl/fi/wzs9otiu43cde6w03yjqs/VideoUpscaler-1.2.0.apk?rlkey=ht03d3ff12dqduhyys75e7sjl&dl=1) |
 | 🐙 **GitHub** (خام) | [VideoUpscaler-1.2.0.apk](https://github.com/s1po0/Video-/raw/arena/50215008-video/VideoUpscaler-1.2.0.apk) |
 
-٦١ کیلۆبایت · Android 7.0+ · ئیمزاکراو (v2+v3)
+٦٥ کیلۆبایت · Android 7.0+ · ئیمزاکراو (v2+v3)
 
 ### دامەزراندن
 1. لە لینکەکەوە فایلی `.apk` دابەزێنە
@@ -42,6 +42,15 @@ source .tools/env.sh
 - **ئاگادارکردنەوەی هەمیشەیی** لە شریتی ئاگادارکردنەوە: ٪، کاتی ماوە، و دوگمەی **پاشگەزبوونەوە**
 - کاتێک گەڕایتەوە بۆ ئەپ، هەموو شتێک لە شوێنی خۆی دەبێت (ئەگەر کارەکە تەواو بووبێت، ئەنجامەکە پیشان دەدرێت)
 - `WakeLock` ی ٨ کاتژمێر بۆ ئەوەی سیستەم کارەکە نەکوژێت
+
+**پێشبینینی ڕاستەقینەی پێش/دوای** 🔍
+- هەر کاتێک پلە یان کوالیتی دەگۆڕیت، ئەپ **چوارچێوەیەکی ڕاستەقینە** لە ڤیدیۆکەت دەردەهێنێت
+  و بە هەمان ئەلگۆریتم (Lanczos/Bicubic + تیژکردن) گەورەی دەکات — بەراوردی پێش/دوای بە چاو دەبینی
+- ئەمە بە **Vulkan/GPU** نییە، بەڵام بۆ CPU باشترین ئەنجام دەدات و هیچ مۆدێلێکی دەرەکی پێویست نییە
+
+**پاراستنی ئامێر** 🌡️
+- پشکنینی **گەرمی** (thermal): ئەگەر مۆبایل زۆر گەرم بێت کارەکە دەوەستێت و پەیامێک پیشان دەدەیت
+- هەژمارکردنی وردی **ژمارەی کۆرەکان** و بیرگەی کەم، بۆ ئەوەی ئەپی تر نەگیرۆ دەست
 
 **چاککردنی ئەنجام** 🐞
 - ڤیدیۆی ئەنجام ئێستا لە کاش نووسرێت و پاشان بە سەلامەتی کۆپی دەکرێتە گەلەری —
