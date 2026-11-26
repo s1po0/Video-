@@ -1,0 +1,61 @@
+name: Build Signed Android APK
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies & build web bundle
+        run: |
+          npm ci
+          npm run validate:story
+          npm run build
+          npx cap sync android
+
+      - name: Generate release keystore & build signed APK
+        run: |
+          keytool -genkeypair -v \
+            -keystore android/app/release-key.jks \
+            -alias midnightvelvet \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass midnightvelvet2026 \
+            -keypass midnightvelvet2026 \
+            -dname "CN=Midnight Velvet, OU=Games, O=MidnightVelvet, L=Erbil, S=Erbil, C=IQ"
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleRelease --no-daemon
+          ls -lh app/build/outputs/apk/release/
+
+      - name: Copy signed APK
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk Midnight-Velvet.apk
+          ls -lh Midnight-Velvet.apk
+
+      - name: Upload Signed APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Midnight-Velvet-APK
+          path: Midnight-Velvet.apk
+          if-no-files-found: error

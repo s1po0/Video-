@@ -1,0 +1,11 @@
+{
+  "appId": "com.midnightvelvet.vn",
+  "appName": "شەوی مەخمەلی",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#0b0612",
+  "android": {
+    "backgroundColor": "#0b0612",
+    "allowMixedContent": true
+  }
+}
