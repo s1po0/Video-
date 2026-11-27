@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SliceVid — YouTube Video Trimmer & Downloader</title>
+  <meta name="description" content="Cut, trim and download any part of a YouTube video. Pick your timestamps and download the clip as MP4, WebM or MP3 — plus download subtitles." />
+  <link rel="preconnect" href="https://i.ytimg.com" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">▶</span>
+        <span class="brand-name">Slice<span class="accent">Vid</span></span>
+      </a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero">
+      <div class="container hero-inner">
+        <p class="eyebrow">YouTube Cutter · Trimmer · Clip Downloader</p>
+        <h1>Cut, trim &amp; download <span class="accent">any part</span> of a YouTube video</h1>
+        <p class="lead">Paste a link, choose your start and end time, and download the exact clip you want — as MP4, WebM or MP3. No software, no watermark. You can grab the subtitles too.</p>
+
+        <form id="url-form" class="url-form" autocomplete="off">
+          <input id="url-input" type="url" inputmode="url" placeholder="Paste a YouTube link…  (https://www.youtube.com/watch?v=…)" required />
+          <button id="url-submit" type="submit">Trim video</button>
+        </form>
+        <p id="url-error" class="form-error" hidden></p>
+
+        <div id="demo-banner" class="demo-banner" hidden>
+          <strong>Preview mode:</strong> the backend can't reach YouTube from this sandbox, so we're showing a sample video. Deploy SliceVid to a host with internet access to download real clips &amp; subtitles.
+        </div>
+      </div>
+    </section>
+
+    <!-- EDITOR -->
+    <section id="editor" class="editor" hidden>
+      <div class="container">
+        <div class="card video-card">
+          <div class="thumb">
+            <img id="video-thumb" alt="Video thumbnail" />
+            <span id="video-duration" class="badge"></span>
+          </div>
+          <div class="video-meta">
+            <h2 id="video-title"></h2>
+            <p id="video-channel"></p>
+            <a id="video-link" class="video-link" target="_blank" rel="noopener">Open on YouTube ↗</a>
+          </div>
+        </div>
+
+        <div class="card trim-card">
+          <div class="trim-head">
+            <h3>Select the part to cut</h3>
+            <p class="muted">Drag the handles to set the start and end of your clip.</p>
+          </div>
+
+          <div class="timeline" id="timeline">
+            <div class="timeline-track">
+              <div class="timeline-selected" id="timeline-selected"></div>
+              <input type="range" id="start-range" min="0" max="100" value="0" step="0.1" />
+              <input type="range" id="end-range" min="0" max="100" value="100" step="0.1" />
+            </div>
+            <div class="timeline-ticks" id="timeline-ticks"></div>
+          </div>
+
+          <div class="time-readout">
+            <div class="time-box">
+              <span class="time-label">Start</span>
+              <span class="time-value" id="start-time">00:00:00</span>
+            </div>
+            <div class="time-box clip">
+              <span class="time-label">Clip length</span>
+              <span class="time-value" id="clip-length">00:00:00</span>
+            </div>
+            <div class="time-box">
+              <span class="time-label">End</span>
+              <span class="time-value" id="end-time">00:00:00</span>
+            </div>
+          </div>
+
+          <div class="options">
+            <div class="opt-group">
+              <span class="opt-label">Format</span>
+              <div class="seg" id="format-seg">
+                <button type="button" class="seg-btn active" data-format="mp4">MP4</button>
+                <button type="button" class="seg-btn" data-format="webm">WebM</button>
+                <button type="button" class="seg-btn" data-format="mp3">MP3</button>
+              </div>
+            </div>
+            <div class="opt-group" id="quality-group">
+              <span class="opt-label">Quality</span>
+              <select id="quality-select"></select>
+            </div>
+          </div>
+
+          <button id="download-btn" class="primary-btn">Download clip</button>
+
+          <div id="progress" class="progress" hidden>
+            <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+            <p id="progress-text" class="progress-text"></p>
+          </div>
+        </div>
+
+        <div class="card subs-card">
+          <div class="trim-head">
+            <h3>Download subtitles</h3>
+            <p class="muted">Grab the captions for this video as SRT or VTT.</p>
+          </div>
+          <div class="subs-row">
+            <select id="sub-lang"></select>
+            <select id="sub-format">
+              <option value="srt">SRT</option>
+              <option value="vtt">VTT</option>
+            </select>
+            <button id="subs-btn" class="ghost-btn">Download subtitles</button>
+          </div>
+          <p id="subs-error" class="form-error" hidden></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features" class="features">
+      <div class="container">
+        <h2 class="section-title">Why SliceVid</h2>
+        <div class="feature-grid">
+          <div class="feature">
+            <div class="feature-icon">✂️</div>
+            <h3>Trim any section</h3>
+            <p>Choose exact start and end timestamps and download only the part you need.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🎞️</div>
+            <h3>MP4, WebM &amp; MP3</h3>
+            <p>Export video clips in MP4 or WebM, or extract just the audio as MP3.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">📝</div>
+            <h3>Subtitle download</h3>
+            <p>Pull the captions you need in SRT or VTT — including auto-generated ones.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">⚡</div>
+            <h3>Fast &amp; modern</h3>
+            <p>A clean, fast interface that gets you from link to clip in seconds.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">💧</div>
+            <h3>No watermark</h3>
+            <p>Your downloads are clean — we never stamp a watermark on your clips.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🔒</div>
+            <h3>No account needed</h3>
+            <p>Just paste a link. No sign-up, no hoops to jump through.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="how" class="how">
+      <div class="container">
+        <h2 class="section-title">How it works</h2>
+        <ol class="steps">
+          <li><span class="step-num">1</span><div><h3>Paste the link</h3><p>Drop in any YouTube URL and we'll load its details.</p></div></li>
+          <li><span class="step-num">2</span><div><h3>Pick your slice</h3><p>Set the start and end times with the timeline handles.</p></div></li>
+          <li><span class="step-num">3</span><div><h3>Download</h3><p>Choose a format and grab your clip — or the subtitles.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="faq">
+      <div class="container">
+        <h2 class="section-title">Frequently asked questions</h2>
+        <div class="faq-list">
+          <details><summary>What is SliceVid?</summary><p>SliceVid is a free online tool to cut, trim and download any part of a YouTube video as MP4, WebM or MP3, and to download subtitles.</p></details>
+          <details><summary>How do I cut and download part of a YouTube video?</summary><p>Paste the video link, drag the timeline handles to your start and end times, pick a format, and hit “Download clip”.</p></details>
+          <details><summary>Can I download a YouTube clip as MP4 or WebM?</summary><p>Yes. SliceVid exports trimmed clips as MP4 or WebM video, or as MP3 audio only.</p></details>
+          <details><summary>Can I download subtitles?</summary><p>Yes. Choose a language and format (SRT or VTT) and SliceVid downloads the captions — including auto-generated ones when available.</p></details>
+          <details><summary>Do I need an account?</summary><p>No. SliceVid works without sign-up. Just paste a link and download.</p></details>
+          <details><summary>Does SliceVid add a watermark?</summary><p>No. Your clips are downloaded clean, with no watermark added.</p></details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span>SliceVid — YouTube Video Trimmer &amp; Downloader</span>
+      <span class="muted">For personal use. Respect copyright and YouTube's Terms of Service.</span>
+    </div>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
