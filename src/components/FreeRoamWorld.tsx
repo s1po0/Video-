@@ -3,11 +3,11 @@ import { computeRank } from '../data/catalog';
 import { STORY_SAGA_CHAPTERS } from '../data/storySagaPart3';
 import type { SagaChoice } from '../data/storySagaTypes';
 import { TOWER_HOTSPOTS, type TowerHotspot } from '../data/towerMap';
+import { ZONE_ORDER_25D, ZONES_25D, type Npc25D, type Sensor25D, type Zone25DId } from '../data/world25dZones';
 import type { GameState, HeroineId, Locale, LocationId } from '../types/game';
-import type { NpcSpawn3D, World3DSensor, WorldZoneId } from '../utils/world3dHotelBuilder';
 import { CityPoiModal, type ActiveCityBuilding } from './CityPoiModal';
 import { StorySagaModal } from './StorySagaModal';
-import { World3DCanvas, type ProjectedMarker } from './World3DCanvas';
+import { World25DCanvas } from './World25DCanvas';
 
 interface FreeRoamWorldProps {
   state: GameState;
@@ -37,18 +37,18 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
   onUpdateState,
 }) => {
   const isKu = locale === 'ckb';
-  const [zone, setZone] = useState<WorldZoneId>('17f');
-  const [zoomFar, setZoomFar] = useState(false);
+  // Start right in the bright 2.5D Grand Velvet City Plaza so everything feels fresh!
+  const [zoneId, setZoneId] = useState<Zone25DId>('city');
+  const [zoomClose, setZoomClose] = useState(false);
   const [sprinting, setSprinting] = useState(false);
   const [drivingCar, setDrivingCar] = useState(false);
-  const [companionId, setCompanionId] = useState<HeroineId | null>(null);
+  const [companionId, setCompanionId] = useState<HeroineId | null>('layla');
 
-  const [nearSensor, setNearSensor] = useState<World3DSensor | null>(null);
-  const [nearNpc, setNearNpc] = useState<NpcSpawn3D | null>(null);
-  const [markers, setMarkers] = useState<ProjectedMarker[]>([]);
+  const [nearSensor, setNearSensor] = useState<Sensor25D | null>(null);
+  const [nearNpc, setNearNpc] = useState<Npc25D | null>(null);
   const [activeCityBuilding, setActiveCityBuilding] = useState<ActiveCityBuilding>(null);
+  const [bannerNotice, setBannerNotice] = useState<string | null>(null);
 
-  // Story-Skills 12-Chapter Saga state
   const [sagaOpen, setSagaOpen] = useState(false);
   const [sagaChapter, setSagaChapter] = useState<number>(1);
   const [unlockedChapters, setUnlockedChapters] = useState<number[]>([1]);
@@ -66,7 +66,7 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
         if (Array.isArray(parsed.debunkedClues)) setDebunkedClues(parsed.debunkedClues);
       }
     } catch {
-      // ignore storage errors
+      // ignore
     }
   }, []);
 
@@ -81,10 +81,14 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
     }
   }, [sagaChapter, unlockedChapters, unlockedClues, debunkedClues]);
 
-  // Virtual Joystick state
   const joyVecRef = useRef({ x: 0, y: 0 });
   const [joyUi, setJoyUi] = useState({ x: 0, y: 0, active: false });
   const joyOriginRef = useRef({ x: 0, y: 0 });
+
+  const flashBanner = (ku: string, en: string) => {
+    setBannerNotice(isKu ? ku : en);
+    setTimeout(() => setBannerNotice(null), 2600);
+  };
 
   const openChapter = (num: number) => {
     setUnlockedChapters((prev) => (prev.includes(num) ? prev : [...prev, num]));
@@ -128,139 +132,125 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
     }
   };
 
-  const triggerSensorAction = (s: World3DSensor) => {
-    if (s.kind === 'portal_17f') { setDrivingCar(false); setZone('17f'); }
-    else if (s.kind === 'portal_18f') { setDrivingCar(false); setZone('18f'); }
-    else if (s.kind === 'portal_city') { setZone('city'); }
+  const activateSensor = (s: Sensor25D) => {
+    if (s.kind === 'goto_zone' && s.targetZone) {
+      setDrivingCar(false);
+      setZoneId(s.targetZone);
+      const z = ZONES_25D[s.targetZone];
+      flashBanner(`✦ ${z.titleKu}`, `✦ ${z.titleEn}`);
+    } else if (s.kind === 'hospital') setActiveCityBuilding('hospital');
+    else if (s.kind === 'mall') setActiveCityBuilding('mall');
+    else if (s.kind === 'career') setActiveCityBuilding('career');
+    else if (s.kind === 'alley') setActiveCityBuilding('alley');
+    else if (s.kind === 'casino') setActiveCityBuilding('casino');
+    else if (s.kind === 'supercar') setDrivingCar((d) => !d);
+    else if (s.kind === 'saga') openChapter(s.sagaChapter || sagaChapter);
     else if (s.kind === 'bed') onRestNight();
     else if (s.kind === 'bar') onStartMixology();
-    else if (s.kind === 'shop') {
-      if (zone === 'city') setActiveCityBuilding('mall');
-      else onOpenShop();
+    else if (s.kind === 'shop') onOpenShop();
+    else if (s.kind === 'sauna_heal') {
+      if (onUpdateState) onUpdateState((p) => ({ ...p, energy: 3 }));
+      flashBanner('🔥 لە ساونای شاهانە وزەت بە تەواوی پڕ بووەوە! (⚡ 3/3)', '🔥 Cedar Sauna restored full Energy (⚡ 3/3)!');
     } else if (s.kind === 'spa') {
       const spot = TOWER_HOTSPOTS.find((h) => h.id === s.hotspotId) || TOWER_HOTSPOTS[0];
       if (spot) onTriggerSpa(spot);
-    } else if (s.kind === 'saga') {
-      openChapter(zone === '18f' ? 6 : sagaChapter);
-    } else if (s.kind === 'hospital') setActiveCityBuilding('hospital');
-    else if (s.kind === 'career') setActiveCityBuilding('career');
-    else if (s.kind === 'alley') setActiveCityBuilding('alley');
-    else if (s.kind === 'supercar') setDrivingCar((d) => !d);
+    }
   };
 
-  const triggerNpcAction = (npc: NpcSpawn3D) => {
-    if (npc.cityBuilding) {
-      setActiveCityBuilding(npc.cityBuilding);
-    } else if (npc.id === 'layla' || npc.id === 'celine' || npc.id === 'aria') {
-      onEngageHeroine(npc.id, npc.locId || 'suite');
+  const activateNpc = (n: Npc25D) => {
+    if (n.cityModal) setActiveCityBuilding(n.cityModal);
+    else if (n.id === 'layla' || n.id === 'celine' || n.id === 'aria') {
+      onEngageHeroine(n.id, n.locId || 'suite');
     }
   };
 
   const cycleCompanion = () => {
-    const order: (HeroineId | null)[] = [null, 'layla', 'celine', 'aria'];
-    const idx = order.indexOf(companionId);
-    setCompanionId(order[(idx + 1) % order.length]);
+    const order: (HeroineId | null)[] = ['layla', 'celine', 'aria', null];
+    setCompanionId(order[(order.indexOf(companionId) + 1) % order.length]);
   };
 
   return (
-    <div className="relative w-full h-[calc(100dvh-64px)] min-h-[430px] overflow-hidden bg-slate-950 rounded-b-2xl">
-      {/* Real-Time Three.js Studio 3D Viewport */}
-      <World3DCanvas
-        zone={zone}
-        zoomFar={zoomFar}
+    <div className="relative w-full h-[calc(100dvh-60px)] min-h-[430px] overflow-hidden bg-slate-950">
+      {/* Pure 2D & 2.5D Hand-Painted Manhwa World */}
+      <World25DCanvas
+        zoneId={zoneId}
+        locale={locale}
+        zoomClose={zoomClose}
         sprinting={sprinting}
         drivingCar={drivingCar}
         companionId={companionId}
         joyVecRef={joyVecRef}
         onNearSensor={setNearSensor}
         onNearNpc={setNearNpc}
-        onMarkersUpdate={setMarkers}
+        onAutoActivateSensor={activateSensor}
+        onAutoActivateNpc={activateNpc}
       />
 
-      {/* Exact 3D-Projected Floating World Markers (Zero Misalignment!) */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden z-10">
-        {markers.map((m) => (
-          <div
-            key={m.id}
-            style={{ transform: `translate(${m.x}px, ${m.y}px) translate(-50%, -100%)` }}
-            className="absolute top-0 left-0 flex flex-col items-center"
-          >
-            <div
-              className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-extrabold whitespace-nowrap shadow-lg border backdrop-blur-sm ${
-                m.isNpc
-                  ? 'bg-rose-950/85 border-pink-400/60 text-pink-100'
-                  : 'bg-slate-950/85 border-amber-400/50 text-amber-100'
-              }`}
-            >
-              {m.icon} {isKu ? m.labelKu : m.labelEn}
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Zone Arrival Toast */}
+      {bannerNotice && (
+        <div className="pointer-events-none absolute top-14 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 rounded-full bg-slate-950/90 border border-amber-300/60 text-amber-200 text-xs sm:text-sm font-extrabold shadow-xl">
+          {bannerNotice}
+        </div>
+      )}
 
-      {/* Top 3D Zone Switcher + Story-Skills 12-Chapter Saga Button */}
-      <div className="absolute top-2.5 inset-x-2.5 z-20 flex flex-wrap items-center justify-between gap-1.5 pointer-events-auto">
-        <div className="flex items-center gap-1 bg-slate-950/85 backdrop-blur-md p-1 rounded-full border border-white/15 shadow-lg">
-          <button
-            onClick={() => { setDrivingCar(false); setZone('17f'); }}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold transition ${
-              zone === '17f' ? 'bg-amber-400 text-slate-950' : 'text-amber-100 hover:bg-white/10'
-            }`}
-          >
-            🏨 17F {isKu ? 'سویت' : 'Suites'}
-          </button>
-          <button
-            onClick={() => { setDrivingCar(false); setZone('18f'); }}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold transition ${
-              zone === '18f' ? 'bg-cyan-400 text-slate-950' : 'text-cyan-100 hover:bg-white/10'
-            }`}
-          >
-            🌊 18F {isKu ? 'مەلەوانگە' : 'Pool'}
-          </button>
-          <button
-            onClick={() => setZone('city')}
-            className={`px-3 py-1 rounded-full text-[11px] font-extrabold transition ${
-              zone === 'city'
-                ? 'bg-gradient-to-r from-emerald-400 to-sky-400 text-slate-950 shadow'
-                : 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40'
-            }`}
-          >
-            🏙️ {isKu ? 'شاری گەورە (دەرەوە)' : 'Open City'}
-          </button>
+      {/* Clean Top 2.5D Floor & City Bar */}
+      <div className="absolute top-2 inset-x-2 z-20 flex flex-wrap items-center justify-between gap-1.5 pointer-events-auto">
+        <div className="flex items-center gap-1 overflow-x-auto max-w-full bg-slate-950/85 backdrop-blur-md px-1.5 py-1 rounded-full border border-amber-300/30 shadow-lg">
+          {ZONE_ORDER_25D.map((zid) => {
+            const z = ZONES_25D[zid];
+            const active = zoneId === zid;
+            return (
+              <button
+                key={zid}
+                onClick={() => {
+                  setDrivingCar(false);
+                  setZoneId(zid);
+                  flashBanner(`✦ ${z.titleKu}`, `✦ ${z.titleEn}`);
+                }}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold whitespace-nowrap transition ${
+                  active
+                    ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 shadow'
+                    : 'text-amber-100/85 hover:bg-white/10'
+                }`}
+              >
+                {isKu ? z.badgeKu : z.badgeEn}
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setSagaOpen(true)}
-            className="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-rose-400 text-slate-950 text-[11px] sm:text-xs font-extrabold shadow-lg animate-pulse"
+            className="px-3 py-1 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 text-white text-[11px] sm:text-xs font-extrabold shadow-lg border border-amber-200/50"
           >
-            📖 {isKu ? `چیرۆکی قووڵ (${sagaChapter}/12)` : `Story Saga (${sagaChapter}/12)`}
+            📖 {isKu ? `چیرۆک (${sagaChapter}/12)` : `Story (${sagaChapter}/12)`}
           </button>
           <button
             onClick={cycleCompanion}
-            className="px-2.5 py-1.5 rounded-full bg-slate-900/90 border border-pink-400/50 text-pink-200 text-[11px] font-bold"
+            className="px-2.5 py-1 rounded-full bg-slate-950/85 border border-pink-400/50 text-pink-200 text-[11px] font-bold"
           >
             🤝{' '}
-            {companionId
-              ? companionId === 'layla'
-                ? isKu ? 'لەیلا' : 'Layla'
-                : companionId === 'celine'
-                ? isKu ? 'سێلین' : 'Celine'
-                : isKu ? 'ئاریا' : 'Aria'
-              : isKu ? 'بەتەنها' : 'Solo'}
+            {companionId === 'layla'
+              ? isKu ? 'لەیلا' : 'Layla'
+              : companionId === 'celine'
+              ? isKu ? 'سێلین' : 'Celine'
+              : companionId === 'aria'
+              ? isKu ? 'ئاریا' : 'Aria'
+              : isKu ? 'تەنها' : 'Solo'}
           </button>
           <button
-            onClick={() => setZoomFar((z) => !z)}
-            className="px-2.5 py-1.5 rounded-full bg-slate-900/90 border border-white/20 text-sky-200 text-[11px] font-bold"
+            onClick={() => setZoomClose((z) => !z)}
+            className="px-2.5 py-1 rounded-full bg-slate-950/85 border border-sky-400/40 text-sky-200 text-[11px] font-bold"
           >
-            🔍 {zoomFar ? '3D-' : '3D+'}
+            🔍 {zoomClose ? (isKu ? 'گشتی' : 'Wide') : '2.5D+'}
           </button>
         </div>
       </div>
 
-      {/* Virtual 360° Thumbstick (Bottom-Left) */}
+      {/* Bottom-Left Smooth 2.5D Virtual Thumbstick */}
       <div
-        className="absolute bottom-5 left-5 z-20 w-24 h-24 rounded-full bg-slate-900/65 border-2 border-amber-300/40 backdrop-blur-md flex items-center justify-center touch-none select-none"
+        className="absolute bottom-4 left-4 z-20 w-22 h-22 rounded-full bg-slate-950/60 border-2 border-amber-300/45 backdrop-blur-md flex items-center justify-center touch-none select-none"
         onPointerDown={(e) => {
           e.stopPropagation();
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -271,7 +261,7 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
           if (!joyUi.active) return;
           const dx = e.clientX - joyOriginRef.current.x;
           const dy = e.clientY - joyOriginRef.current.y;
-          const maxR = 34;
+          const maxR = 32;
           const d = Math.hypot(dx, dy);
           const cx = d > maxR ? (dx / d) * maxR : dx;
           const cy = d > maxR ? (dy / d) * maxR : dy;
@@ -285,16 +275,16 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
       >
         <div
           style={{ transform: `translate(${joyUi.x}px, ${joyUi.y}px)` }}
-          className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-300 to-rose-400 shadow-lg border border-white/60"
+          className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-300 to-rose-400 shadow-lg border border-white/70"
         />
       </div>
 
-      {/* Right Action Cluster: Sprint / Supercar + Context Action Prompt */}
-      <div className="absolute bottom-5 right-4 z-20 flex flex-col items-end gap-2 pointer-events-auto">
+      {/* Bottom-Right Context Action Buttons */}
+      <div className="absolute bottom-4 right-4 z-20 flex flex-col items-end gap-2 pointer-events-auto">
         {nearNpc && (
           <button
-            onClick={() => triggerNpcAction(nearNpc)}
-            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 text-white text-xs sm:text-sm font-extrabold shadow-xl border border-pink-200/60"
+            onClick={() => activateNpc(nearNpc)}
+            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 text-white text-xs sm:text-sm font-extrabold shadow-xl border border-pink-200/70"
           >
             💬 {isKu ? `گفتوگۆ لەگەڵ ${nearNpc.nameKu}` : `Talk to ${nearNpc.nameEn}`}
           </button>
@@ -302,34 +292,32 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
 
         {nearSensor && (
           <button
-            onClick={() => triggerSensorAction(nearSensor)}
-            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 text-xs sm:text-sm font-extrabold shadow-xl border border-white/60"
+            onClick={() => activateSensor(nearSensor)}
+            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-300 to-amber-500 text-slate-950 text-xs sm:text-sm font-extrabold shadow-xl border border-white/80"
           >
             {nearSensor.icon} {isKu ? nearSensor.labelKu : nearSensor.labelEn}
           </button>
         )}
 
-        <div className="flex items-center gap-2">
-          {zone === 'city' && (
+        <div className="flex items-center gap-1.5">
+          {zoneId === 'city' && (
             <button
               onClick={() => setDrivingCar((d) => !d)}
-              className={`px-3.5 py-2 rounded-full text-xs font-extrabold border shadow-lg ${
+              className={`px-3 py-1.5 rounded-full text-xs font-extrabold border shadow-lg ${
                 drivingCar
-                  ? 'bg-red-500 text-white border-yellow-300'
-                  : 'bg-slate-900/90 text-amber-200 border-amber-400/40'
+                  ? 'bg-rose-600 text-white border-amber-200'
+                  : 'bg-slate-950/90 text-amber-200 border-amber-400/40'
               }`}
             >
-              🏎️ {drivingCar ? (isKu ? 'دابەزین' : 'Exit Car') : isKu ? 'سەیارە' : 'Drive'}
+              🏎️ {drivingCar ? (isKu ? 'دابەزین' : 'Exit Car') : isKu ? 'سەیارە' : 'Supercar'}
             </button>
           )}
           <button
-            onPointerDown={() => setSprinting(true)}
-            onPointerUp={() => setSprinting(false)}
             onClick={() => setSprinting((s) => !s)}
-            className={`px-3.5 py-2 rounded-full text-xs font-extrabold border shadow-lg ${
+            className={`px-3 py-1.5 rounded-full text-xs font-extrabold border shadow-lg ${
               sprinting
                 ? 'bg-sky-400 text-slate-950 border-white'
-                : 'bg-slate-900/90 text-sky-200 border-sky-400/40'
+                : 'bg-slate-950/90 text-sky-200 border-sky-400/40'
             }`}
           >
             ⚡ {isKu ? 'غاردان' : 'Sprint'}
@@ -337,7 +325,6 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
         </div>
       </div>
 
-      {/* Open-World City Building Modal (Hospital, Career Work, Shopping Mall, Secret Alley) */}
       <CityPoiModal
         building={activeCityBuilding}
         locale={locale}
@@ -374,7 +361,6 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
         onOpenSagaChapter={openChapter}
       />
 
-      {/* Story-Skills 12-Chapter Deep Saga & Clue Board Modal */}
       <StorySagaModal
         open={sagaOpen}
         locale={locale}
@@ -386,10 +372,11 @@ export const FreeRoamWorld: React.FC<FreeRoamWorldProps> = ({
         onSelectChapter={(n) => setSagaChapter(n)}
         onChooseOption={handleSagaChoice}
         onTeleportToLocation={(locId) => {
-          if (locId === 'hotel_17f') { setDrivingCar(false); setZone('17f'); }
-          else if (locId === 'hotel_18f') { setDrivingCar(false); setZone('18f'); }
+          setDrivingCar(false);
+          if (locId === 'hotel_17f') setZoneId('17f');
+          else if (locId === 'hotel_18f') setZoneId('18f');
           else {
-            setZone('city');
+            setZoneId('city');
             if (locId === 'city_hospital') setActiveCityBuilding('hospital');
             else if (locId === 'city_career') setActiveCityBuilding('career');
             else if (locId === 'city_mall') setActiveCityBuilding('mall');

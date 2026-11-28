@@ -404,6 +404,17 @@ export const App: React.FC = () => {
     return () => window.clearTimeout(tmr);
   }, [activeBeat, beatText.length, revealedChars, screen]);
 
+  const enterOpenWorldDirect = () => {
+    audioEngine.init();
+    audioEngine.setMood('midnight_jazz');
+    triggerHaptic('small');
+    if (!state.seenIntro) {
+      setState((prev) => ({ ...prev, seenIntro: true }));
+    }
+    setHubViewMode('tower');
+    setScreen('hub');
+  };
+
   const startFreshGame = () => {
     audioEngine.init();
     audioEngine.setMood('midnight_jazz');
@@ -411,9 +422,43 @@ export const App: React.FC = () => {
     const fresh = createInitialGameState();
     fresh.seenIntro = true;
     setState(fresh);
+    setHubViewMode('tower');
     setEncounter({
-      title: { ckb: 'شەوی ١ • گەیشتن بۆ نهۆمی ١٧', en: 'Night 1 • Penthouse Arrival' },
-      beats: ARRIVAL_PROLOGUE,
+      title: {
+        ckb: 'دەستپێکی نوێ • شاری مەخمەلی و هۆتێلی ٥ نهۆمی (2.5D)',
+        en: 'New Awakening • Velvet City & 5-Floor Grand Hotel (2.5D)',
+      },
+      beats: [
+        {
+          speaker: 'narrator',
+          image: '/assets/title_v4_keyart.jpg',
+          camera: 'pan_right',
+          effect: 'warm_glow',
+          text: {
+            ckb: 'تیشکی زێڕینی ئێوارە بەسەر شەقامە فراوانەکانی «شاری مەخمەلی»ـدا دەدرەوشایەوە. سیپان لە باڵکۆنی هۆتێلە گەورەکەوە دەیڕوانییە شارێک کە پڕ بوو لە دەرفەت، عەشق و نهێنییەکی مەترسیدار.',
+            en: 'Golden twilight illuminated the boulevards of Velvet City as Sipan looked out over a world of romance, ambition, and dangerous secrets.',
+          },
+        },
+        {
+          speaker: 'layla',
+          image: '/assets/layla_portrait.jpg',
+          camera: 'close',
+          text: {
+            ckb: '«سیپان... ملوانکەی یاقووتیی دایکم دزراوە و هێڵەکانی ئەم تاوانە لە نهۆمەکانی هۆتێلەکەوە درێژ دەبنەوە بۆ نەخۆشخانەی شار و مۆڵی ئەستێرە و کۆڵانی نهێنی. لەگەڵم دەبیت؟»',
+            en: '"Sipan... my mother’s ruby vanished, and the trail leads from our hotel floors right out into the City Hospital, Starlight Mall, and Shadow Alley. Stay close to me."',
+          },
+        },
+        {
+          speaker: 'narrator',
+          image: '/assets/world_city_map.jpg',
+          camera: 'normal',
+          effect: 'heartbeat',
+          text: {
+            ckb: 'ئێستا هەموو شارەکە و هەر ٥ نهۆمی هۆتێلەکە بە شێوازی 2.5D لەبەردەستتدان: کار بکە لە تاوەری بازرگانی، شۆپینگ بکە، سەردانی دکتۆر نارا و کاوەی سێبەر بکە، و داستانی ١٢ بەشی تەواو ئەزموون بکە!',
+            en: 'All 6 hand-painted 2.5D zones are now yours to roam freely: work executive shifts, shop at Starlight Mall, visit Dr. Nara & Kawa Shadow, drive your supercar, and unravel the 12-chapter saga!',
+          },
+        },
+      ],
       beatIndex: 0,
     });
     setScreen('scene');
@@ -1047,10 +1092,10 @@ export const App: React.FC = () => {
         <div className="title-screen">
           <div
             className="title-bg"
-            style={{ backgroundImage: 'url(/assets/cg_sipan_trio.jpg)' }}
+            style={{ backgroundImage: 'url(/assets/title_v4_keyart.jpg)' }}
           />
           <div className="title-vignette" />
-          <AtmosphereCanvas mode="candle_embers" intensity={1.15} />
+          <AtmosphereCanvas mode="candle_embers" intensity={0.85} />
 
           <header className="title-topbar">
             <button
@@ -1072,47 +1117,49 @@ export const App: React.FC = () => {
           >
             <div className="velvet-badge">
               <Flame size={13} />
-              <span>7 NIGHTS • 3 HEROINES • DATING SIM RPG</span>
+              <span>2.5D OPEN CITY • 5 HOTEL FLOORS • 12-CHAPTER SAGA</span>
             </div>
             <h1 className="main-logo-title">
-              {locale === 'ckb' ? 'حەوت شەوی مەخمەلی' : 'Midnight Velvet 2.0'}
+              {locale === 'ckb' ? 'شاری مەخمەلی 2.5D' : 'Midnight Velvet 4.0'}
             </h1>
             <h2 className="main-logo-sub">
               {locale === 'ckb'
-                ? 'ژوان، نهێنی و شەیدایی لە نهۆمی ١٧ و ١٨'
-                : 'Seven Nights of Desire, Mystery & Romance'}
+                ? 'ژیانی کراوە لە شار، هۆتێلی ٥ نهۆمی، خۆشەویستی و نهێنی'
+                : '2.5D Open City, 5-Floor Grand Hotel, Mystery & Romance'}
             </h2>
             <p className="main-tagline">
               {locale === 'ckb'
-                ? '٣ شاجوان (لەیلا، سێلین، ئاریا) • ٦ شوێنی کراوە • چاتی مۆبایل و وێنە • یاریی لێدانی دڵ و دیاری!'
-                : '3 Captivating Women • 6 Penthouse Locations • Late-Night Phone DMs • Heartbeat Sync & Gift Affinity!'}
+                ? 'نەخۆشخانە (دکتۆر نارا) • مۆڵی شۆپینگ • تاوەری کارکردن • کۆڵانی نهێنی • گازینۆ و سەربان • داستانی ١٢ بەشی قووڵ!'
+                : 'City Hospital • Shopping Mall • Career Tower • Secret Alley • 5 Hotel Floors • Deep 12-Chapter Story!'}
             </p>
 
             <div className="title-menu-buttons">
-              {state.seenIntro && (
-                <button className="primary-cta" onClick={continueSavedGame}>
-                  <Play size={18} />
-                  <span>
-                    {locale === 'ckb'
-                      ? `بەردەوامبوون (شەوی ${state.night}/7)`
-                      : `Continue (Night ${state.night}/7)`}
-                  </span>
-                </button>
-              )}
+              <button className="primary-cta" onClick={enterOpenWorldDirect}>
+                <Play size={18} />
+                <span>
+                  {locale === 'ckb'
+                    ? `چوونە ناو شار و هۆتێلی 2.5D (شەوی ${state.night}/7)`
+                    : `Enter 2.5D City & Hotel (Night ${state.night}/7)`}
+                </span>
+              </button>
 
-              <button
-                className={state.seenIntro ? 'secondary-cta' : 'primary-cta'}
-                onClick={startFreshGame}
-              >
+              <button className="secondary-cta" onClick={startFreshGame}>
                 <Sparkles size={17} />
                 <span>
                   {locale === 'ckb'
-                    ? 'دەستپێکردنی یاریی نوێ'
-                    : 'Start New 7-Night Story'}
+                    ? 'دەستپێکردنەوە لە سەرەتای چیرۆکەوە'
+                    : 'Start Fresh Story from Beginning'}
                 </span>
               </button>
 
               <div className="title-sub-grid">
+                <button
+                  className="glass-btn"
+                  onClick={() => setModal('wardrobe')}
+                >
+                  <Sparkles size={16} />
+                  <span>{locale === 'ckb' ? '١٥ جلوبەرگ' : '15 Outfits'}</span>
+                </button>
                 <button
                   className="glass-btn"
                   onClick={() => setModal('gallery')}
@@ -1125,12 +1172,14 @@ export const App: React.FC = () => {
                   </span>
                 </button>
                 <button
-                  className="glass-btn"
+                  className="glass-btn full"
                   onClick={() => setModal('dossier')}
                 >
                   <Heart size={16} />
                   <span>
-                    {locale === 'ckb' ? 'کارەکتەرەکان' : 'Heroines'}
+                    {locale === 'ckb'
+                      ? 'پڕۆفایلی خانمەکان (لەیلا • سێلین • ئاریا)'
+                      : 'Heroine Dossiers'}
                   </span>
                 </button>
                 {!Capacitor.isNativePlatform() && (
@@ -1142,8 +1191,8 @@ export const App: React.FC = () => {
                     <Download size={16} />
                     <span>
                       {locale === 'ckb'
-                        ? 'دابەزاندنی فایلی APK (ڤێرژنی نوێی ئەندرۆید)'
-                        : 'Download Updated Android APK'}
+                        ? 'دابەزاندنی فایلی APK (وەشانی 4.0 ـی 2.5D)'
+                        : 'Download Android APK (v4.0 2.5D)'}
                     </span>
                   </a>
                 )}

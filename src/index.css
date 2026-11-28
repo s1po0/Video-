@@ -1,13 +1,13 @@
 :root {
-  --bg-deep: #0b0612;
-  --glass-bg: rgba(16, 10, 28, 0.84);
-  --glass-border: rgba(245, 194, 124, 0.25);
-  --gold: #f5c27c;
-  --rose: #f472b6;
+  --bg-deep: #0b1221;
+  --glass-bg: rgba(13, 21, 38, 0.86);
+  --glass-border: rgba(251, 191, 36, 0.36);
+  --gold: #fbbf24;
+  --rose: #fb7185;
   --crimson: #e11d48;
   --emerald: #34d399;
-  --text-main: #fdf8f5;
-  --text-muted: #cbbdd8;
+  --text-main: #fffdf9;
+  --text-muted: #dbeafe;
 }
 
 * {
@@ -106,9 +106,9 @@ textarea {
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(11, 6, 18, 0.22) 0%,
-    rgba(11, 6, 18, 0.55) 48%,
-    rgba(11, 6, 18, 0.95) 100%
+    rgba(11, 18, 33, 0.04) 0%,
+    rgba(11, 18, 33, 0.18) 54%,
+    rgba(11, 18, 33, 0.88) 100%
   );
   z-index: 4;
 }

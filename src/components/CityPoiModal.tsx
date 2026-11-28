@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Briefcase, Building2, HeartPulse, ShoppingBag, Sparkles, UserCheck, X } from 'lucide-react';
 import type { Locale } from '../types/game';
 
-export type ActiveCityBuilding = 'hospital' | 'mall' | 'career' | 'alley' | null;
+export type ActiveCityBuilding = 'hospital' | 'mall' | 'career' | 'alley' | 'casino' | null;
 
 interface CityPoiModalProps {
   building: ActiveCityBuilding;
@@ -51,7 +51,9 @@ export const CityPoiModal: React.FC<CityPoiModalProps> = ({
             {building === 'mall' &&
               (isKu ? '🛍️ مۆڵی گەورەی ئەستێرە (شۆپینگ و دیاری)' : '🛍️ Starlight Mega Shopping Mall')}
             {building === 'alley' &&
-              (isKu ? '🕵️ کۆڵانی نهێنی — کاوەی سێبەر (کەسانی نهێنی)' : '🕵️ Shadow Rain Alley — Kawa "The Shadow"')}
+              (isKu ? '🕵️ کۆڵانی نهێنی — کاوەی سێبەر (کەسانی نهێنی)' : '🕵️ Shadow Alley — Kawa "The Shadow"')}
+            {building === 'casino' &&
+              (isKu ? '🎰 گازینۆی شاهانەی نهۆمی ٨ — ڕۆلێتی زێڕین' : '🎰 8F VIP Casino — Golden Roulette')}
           </div>
           <button onClick={onClose} className="p-1.5 rounded-full bg-white/10 hover:bg-rose-500/30">
             <X className="w-4 h-4" />
@@ -234,6 +236,42 @@ export const CityPoiModal: React.FC<CityPoiModalProps> = ({
                   className="w-full py-2.5 px-4 rounded-xl bg-amber-500/25 border border-amber-400/50 text-amber-100 text-xs sm:text-sm font-extrabold"
                 >
                   📖 {isKu ? 'کردنەوەی بەشی ٣ی چیرۆک (ڕووبەڕووبوونەوەی کاوەی سێبەر)' : 'Play Story Chapter 3 (Shadow Alley Showdown)'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {building === 'casino' && (
+            <div className="space-y-3 text-center">
+              <p className="text-xs sm:text-sm text-slate-200 leading-6">
+                {isKu
+                  ? 'بەخێربێیت بۆ گازینۆی VIPـی نهۆمی ٨! چەرخی ڕۆلێتە زێڕینەکە بسووڕێنە یان وەک بەڕێوەبەری مێزی VIP پاداشت وەربگرە!'
+                  : 'Welcome to the 8F VIP Casino! Spin the Golden Roulette wheel or host high-rollers for instant rewards!'}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  onClick={() => {
+                    const win = Math.random() < 0.68;
+                    if (win) {
+                      onEarnWork(150, 'boldness', 'بردنەوەی ڕۆلێتی زێڕین', 'Golden Roulette Jackpot');
+                      notify('🎰 پیرۆزە!! چەرخەکە لەسەر زێڕ وەستا: +$150 و +2 بوێری!', '🎰 JACKPOT! Landed on Velvet Gold: +$150 & +2 Boldness!');
+                    } else {
+                      onEarnWork(35, 'charm', 'پاداشتی بەشداری لە مێزی VIP', 'VIP Table Consolation');
+                      notify('🥂 نزیک بوو! پاداشتی میوانی VIPـت وەرگرت: +$35 و +2 کاریزما!', '🥂 Close spin! VIP House Bonus: +$35 & +2 Charm!');
+                    }
+                  }}
+                  className="py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500/30 to-rose-500/30 border border-amber-300/60 font-extrabold text-xs sm:text-sm text-amber-100"
+                >
+                  🎲 {isKu ? 'سووڕاندنی ڕۆلێتی زێڕین (تا +$150!)' : 'Spin Golden Roulette (Up to +$150!)'}
+                </button>
+                <button
+                  onClick={() => {
+                    onEarnWork(95, 'charm', 'بەڕێوەبردنی مێزی گازینۆی VIP', 'VIP Casino Host');
+                    notify('🃏 +$95 دۆلار و +2 کاریزما لە میوانداریی گازینۆ!', '🃏 Earned +$95 & +2 Charm hosting the VIP table!');
+                  }}
+                  className="py-3 px-4 rounded-xl bg-fuchsia-500/25 border border-fuchsia-400/50 font-extrabold text-xs sm:text-sm text-fuchsia-100"
+                >
+                  🃏 {isKu ? 'کارکردن وەک میوانداری مێزی VIP (+$95)' : 'Host High-Roller Table (+$95)'}
                 </button>
               </div>
             </div>
