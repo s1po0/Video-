@@ -1,4 +1,10 @@
-import { HeroineId, LocalizedText, LocationId, SceneBeat } from '../types/game';
+import {
+  EncounterChoice,
+  HeroineId,
+  LocalizedText,
+  LocationId,
+  SceneBeat,
+} from '../types/game';
 
 export interface TowerHotspot {
   id: string;
@@ -15,6 +21,13 @@ export interface TowerHotspot {
     label: LocalizedText;
     discoveryTitle: LocalizedText;
     beats: SceneBeat[];
+    choices?: EncounterChoice[];
+  };
+  spaObject?: {
+    label: LocalizedText;
+    discoveryTitle: LocalizedText;
+    beats: SceneBeat[];
+    choices: EncounterChoice[];
   };
 }
 
@@ -24,11 +37,11 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
     floorLabel: '18F ROOF',
     mappedLoc: 'pool',
     privateOwner: 'aria',
-    xPercent: 34,
+    xPercent: 33,
     yPercent: 11,
     icon: '⛺',
-    title: { ckb: 'کەپری تایبەتی سەربان', en: 'Private Silk Cabana (18F)' },
-    sub: { ckb: 'پەردەی ئاوریشم و نهێنییەکانی ئاریا', en: 'Aria’s Candlelit Rooftop Hideaway' },
+    title: { ckb: 'کەپر و جاکوزیی سەربان', en: 'Rooftop Cabana & Jacuzzi (18F)' },
+    sub: { ckb: 'پەردەی ئاوریشم و جاکوزیی کەفداری ئاریا', en: 'Aria’s Candlelit Cabana & Foam Spa' },
     roomBg: '/assets/bg_cabana.jpg',
     secretObject: {
       label: { ckb: '🔍 لادانی پەردەی کەپرە تایبەتەکە', en: '🔍 Part the Velvet Cabana Curtains' },
@@ -41,9 +54,78 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
           effect: 'heartbeat',
           unlockCg: 'aria_ruby',
           text: {
-            ckb: 'کاتێک پەردە ئاوریشمییەکەی سەربان لادەدەیت، دەبینیت ئاریا بە عەزییە شەرابییە تەنکەکەیەوە لەبەر ڕووناکیی مۆمەکان پاڵکەوتووە و کارتێکی بە ناوی تۆوە لە دەستدایە! لێوی دەگەزێت و دەستت ڕادەکێشێتە ژوورەوە: «پێشبینیم نەدەکرد بەم درەنگە بێیتە سەربان... مادام خۆت پەردەکەت لادا، ئەمشەو لەم کەپرە ناچیتە دەرەوە!»',
-            en: 'Parting the silk curtains, you catch Aria lounging in her wine-red lace dress by candlelight—she pulls you inside with a breathless grin: “Didn’t expect you up here this late… now I’m keeping you.”',
+            ckb: 'کاتێک پەردە ئاوریشمییەکەی سەربان لادەدەیت، دەبینیت ئاریا بە عەزییە شەرابییە تەنکەکەیەوە لەبەر ڕووناکیی مۆمەکان چاوەڕێتە! دەستت ڕادەکێشێتە ژوورەوە: «پێشبینیم نەدەکرد بەم درەنگە بێیتە سەربان... مادام خۆت پەردەکەت لادا، ئەمشەو لەم کەپرە ناچیتە دەرەوە!»',
+            en: 'Parting the silk curtains, you catch Aria lounging in her wine-red lace dress by candlelight—she pulls you inside: “Now that you’re in here, I’m keeping you.”',
           },
+        },
+      ],
+    },
+    spaObject: {
+      label: { ckb: '🌫️ چوونە لای جاکوزییە تەمگرتووەکەی ئاریا', en: '🌫️ Approach Aria’s Steaming Foam Jacuzzi' },
+      discoveryTitle: { ckb: 'جاکوزیی هەڵم و کەفی سەربان', en: 'Steamy Rooftop Foam Jacuzzi' },
+      beats: [
+        {
+          speaker: 'narrator',
+          image: '/assets/aria_spa.jpg',
+          camera: 'close',
+          text: {
+            ckb: 'لە گۆشە تایبەتەکەی سەرباندا هەورێکی چڕی هەڵمی گەرم بەرز دەبێتەوە و شوشەکانی تەڵخ کردووە. کاتێک لێی نزیک دەبیتەوە، لە ناو کەفە سپییەکەدا ئاریا دەردەکەوێت کە دڵۆپە ئاو بەسەر شان و گەردنییەوە دەخلیسکێت...',
+            en: 'Thick warm steam clouds blur the glass around the private rooftop jacuzzi. Stepping closer, you spot Aria chest-deep in white foam, water glistening on her bare shoulders.',
+          },
+        },
+        {
+          speaker: 'aria',
+          image: '/assets/aria_spa.jpg',
+          camera: 'intimate_zoom',
+          effect: 'heartbeat',
+          unlockCg: 'aria_spa',
+          text: {
+            ckb: 'ئاریا لە ناو هەڵم و کەفەکەوە بە زەردەخەنەیەکی زۆر وروژێنەرەوە سەیرت دەکات و بێ هیچ شەرمێک بانگت دەکات: «چییە، لە پشت هەڵمەکەوە وەستاویت سەیرم دەکەیت؟ خاولییەکەم لە تەنیشتت دانراوە... یاخود دەوێریت زیاتر نزیک ببیتەوە؟»',
+            en: 'Aria gazes up through the swirling steam with a bold, teasing blush: “Standing back there watching through the mist? My towel’s right beside you… or are you bold enough to come closer?”',
+          },
+        },
+      ],
+      choices: [
+        {
+          id: 'aria_spa_bold',
+          style: 'bold',
+          triggerHeartbeat: true,
+          text: { ckb: '🔥 هەڵمی سەر شوشەکە بسڕە و دانیشە لەسەر لێواری جاکوزییەکە لە تەنیشتی', en: '🔥 Wipe the steam away and sit right at the edge beside her' },
+          affectionDelta: 14,
+          desireDelta: 18,
+          trustDelta: 6,
+          followUpBeats: [
+            {
+              speaker: 'aria',
+              image: '/assets/aria_spa.jpg',
+              camera: 'intimate_zoom',
+              effect: 'warm_glow',
+              text: {
+                ckb: 'ئاریا دەستە تەڕ و گەرمەکەی لە ناو کەفەکەوە دەردەهێنێت و دەیخاتە سەر ڕووخسارت، هەناسەی تەواو تێکەڵی هەڵمەکە دەبێت: «تەواو شێتم دەکەیت... حەزم لەم بوێرییەی تۆیە. ئەمشەو تا ئاوەکە سارد دەبێتەوە لێرە ناڕۆین.»',
+                en: 'She reaches a warm, wet hand from the foam to cup your jaw, her breath mingling with the mist: “God, I love how fearless you are… stay right here with me.”',
+              },
+            },
+          ],
+        },
+        {
+          id: 'aria_spa_tender',
+          style: 'tender',
+          text: { ckb: '💖 خاولییە گەرمەکە هەڵبگرە و بیدە بەسەر شانە تەڕەکانیدا', en: '💖 Drape the warm spa towel gently around her wet shoulders' },
+          affectionDelta: 12,
+          desireDelta: 14,
+          trustDelta: 10,
+          followUpBeats: [
+            {
+              speaker: 'aria',
+              image: '/assets/aria_spa.jpg',
+              camera: 'close',
+              effect: 'heartbeat',
+              text: {
+                ckb: 'کاتێک خاولییەکەی لێوە دەپێچیت، خۆی دەنووسێنێت بە سنگتەوە: «ئەوەندە بە سۆزیت کە وا دەکەیت دڵم خێراتر لەم ئاوە بکوڵێت...»',
+                en: 'As you wrap the warm towel around her, she leans warmly against your chest: “You’re making my heart race faster than this heat…”',
+              },
+            },
+          ],
         },
       ],
     },
@@ -52,7 +134,7 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
     id: 'roof_pool',
     floorLabel: '18F POOL',
     mappedLoc: 'pool',
-    xPercent: 66,
+    xPercent: 67,
     yPercent: 16,
     icon: '🌊',
     title: { ckb: 'مەلەوانگەی گەرمی سەربان', en: '18F Heated Infinity Pool' },
@@ -84,8 +166,8 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
     xPercent: 48,
     yPercent: 28,
     icon: '🛏️',
-    title: { ckb: 'ژووری خەوی شاهانە (١٧٠٩)', en: 'VIP Bedroom Suite 1709' },
-    sub: { ckb: 'سیسەمی مەخمەلی و دیداری تایبەتی شەو', en: 'Master Four-Poster Bedroom' },
+    title: { ckb: 'ژووری خەو و گەرماوی ١٧٠٩', en: 'Suite 1709 & Marble Bath' },
+    sub: { ckb: 'سیسەمی مەخمەلی و بانیۆی کەف و گوڵی لەیلا', en: 'Master Bedroom & Rose-Foam Bath' },
     roomBg: '/assets/bg_penthouse.jpg',
     secretObject: {
       label: { ckb: '🎙️ پشکنینی تۆماری دەنگیی سەر مێزی خەوەکە', en: '🎙️ Play Hidden Bedside Voice Memo' },
@@ -98,9 +180,78 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
           effect: 'heartbeat',
           unlockCg: 'layla_crimson',
           text: {
-            ckb: 'کاتێک تۆمارکەرە دەنگییەکەی تەنیشت سیسەمەکە دادەگیرسێنیت و گوێت لە چرپەی ناوی خۆت دەبێت، لەیلا بە جلی خەوی ئاوریشمی سوور و ڕۆبێکی مەخمەلییەوە دێتە ژوورەوە و لەسەر سیسەمەکە دادەنیشێت! «تەواو ئاشکرا بووم... بەڵێ، ئەو گۆرانییەم لە تاریکیدا تەنها بۆ تۆ تۆمار کردبوو. دەرگاکە دابخە و وەرە تەنیشتم.»',
-            en: 'As her hushed voice plays from the bedside recorder, Layla enters in her crimson satin nightgown and velvet robe, blushing deeply on the bed: “Caught red-handed… lock the door and come sit beside me.”',
+            ckb: 'لەیلا بە جلی خەوی ئاوریشمی سوور و ڕۆبێکی مەخمەلییەوە دێتە ژوورەوە و لەسەر سیسەمەکە دادەنیشێت! «تەواو ئاشکرا بووم... دەرگاکە دابخە و وەرە تەنیشتم.»',
+            en: 'Layla enters in her crimson satin nightgown and velvet robe, blushing on the bed: “Lock the door and come sit beside me.”',
           },
+        },
+      ],
+    },
+    spaObject: {
+      label: { ckb: '🌫️ کردنەوەی دەرگای گەرماوە هەڵمدارەکەی لەیلا', en: '🌫️ Open the Steamy Marble Bathroom Door' },
+      discoveryTitle: { ckb: 'بانیۆی کەف و گوڵەباخی لەیلا', en: 'Layla’s Rose-Foam Marble Bath' },
+      beats: [
+        {
+          speaker: 'narrator',
+          image: '/assets/layla_spa.jpg',
+          camera: 'close',
+          text: {
+            ckb: 'دەرگای گەرماوە مەڕمەڕییەکە بە نیوەیی کراوەتەوە و شەپۆلێکی هەڵمی گەرم و بۆنی گوڵەباخ پێشوازیت لێ دەکات. لە پشت تەمە چڕەکەوە، لەیلا لە ناو کەفی سپی و پەڕەی گوڵە سوورەکاندا پاڵکەوتووە...',
+            en: 'Warm rose-scented steam spills through the half-open marble bathroom door. Through the mist, Layla rests shoulder-deep in thick white foam and crimson petals.',
+          },
+        },
+        {
+          speaker: 'layla',
+          image: '/assets/layla_spa.jpg',
+          camera: 'intimate_zoom',
+          effect: 'heartbeat',
+          unlockCg: 'layla_spa',
+          text: {
+            ckb: 'لەیلا بە قژە تەڕەکەیەوە سەرت لێ بادەدات؛ لەبری ئەوەی خۆی بشارێتەوە، بە بزەیەکی گەرم و چاوێکی خومارەوە دەڵێت: «دەرگاکەم بە ئەنقەست قفڵ نەدا چونکە دەمزانی دێیت... لە بەر دەرگاکە مەوەستە با هەڵمەکە دەرنەچێت، وەرە ژوورەوە.»',
+            en: 'With damp dark curls framing her flushed cheeks, Layla smiles languidly through the steam: “I left the bathroom unlocked on purpose because I knew it would be you… come inside and shut the door.”',
+          },
+        },
+      ],
+      choices: [
+        {
+          id: 'layla_spa_bold',
+          style: 'bold',
+          triggerHeartbeat: true,
+          text: { ckb: '🔥 دەرگاکە دابخە، هەڵمەکە بسڕە و لە تەنیشت بانیۆکە چۆک دابدە', en: '🔥 Shut the door, clear the mist, and kneel right beside her bath' },
+          affectionDelta: 15,
+          desireDelta: 19,
+          trustDelta: 7,
+          followUpBeats: [
+            {
+              speaker: 'layla',
+              image: '/assets/layla_spa.jpg',
+              camera: 'intimate_zoom',
+              effect: 'warm_glow',
+              text: {
+                ckb: 'لەیلا پەنجە گەرم و کەفدارەکانی بە سەر مەچەک و لێوتدا دەهێنێت و بە چرپە دەڵێت: «سەیرکردنەکەت ئاوی ناو ئەم بانیۆیەش گەرمتر دەکات... بۆم بهێنە ڕۆبە ئاوریشمییەکەم و با بچینە سەر سیسەمەکە.»',
+                en: 'Her warm, foam-kissed fingers trace your wrist and lips: “The way you look at me makes even this water feel cool… hand me my silk robe and carry me out.”',
+              },
+            },
+          ],
+        },
+        {
+          id: 'layla_spa_playful',
+          style: 'playful',
+          text: { ckb: '😏 «کەواتە داوت بۆ نابوومەوە؟» — تاڵە قژە تەڕەکانی لەسەر ڕوومەتی لابدە', en: '😏 “So you set a trap for me?” — brush a wet curl off her cheek' },
+          affectionDelta: 13,
+          desireDelta: 15,
+          trustDelta: 8,
+          followUpBeats: [
+            {
+              speaker: 'layla',
+              image: '/assets/layla_spa.jpg',
+              camera: 'close',
+              effect: 'heartbeat',
+              text: {
+                ckb: 'ڕوومەتی دەخاتە ناو لەپی دەستتەوە و چاوی دادەخات: «جوانترین داو... و تۆش بە پێی خۆت هاتیتە ناوی.»',
+                en: 'She leans her warm cheek into your palm with a soft laugh: “My favorite trap… and you walked right into it.”',
+              },
+            },
+          ],
         },
       ],
     },
@@ -113,8 +264,8 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
     xPercent: 50,
     yPercent: 42,
     icon: '🔥',
-    title: { ckb: 'ژووری تایبەتی سێلین و ئاگردان', en: 'Celine’s Private Suite (16F)' },
-    sub: { ckb: 'ژووری خەوتن و دۆسیە نهێنییەکانی سێلین', en: 'Celine’s Quarters & Fireplace' },
+    title: { ckb: 'ژوور و گەرماوی تایبەتی سێلین', en: 'Celine’s Suite & Shower (16F)' },
+    sub: { ckb: 'ژووری خەو و حەمامی شوشەیی سێلین', en: 'Celine’s Quarters & Frosted Glass Shower' },
     roomBg: '/assets/cover_keyart.jpg',
     secretObject: {
       label: { ckb: '📂 سەیرکردنی وێنە شاردراوەکەی تەنیشت سیسەمەکەی سێلین', en: '📂 Check Celine’s Bedside Keepsake' },
@@ -127,9 +278,78 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
           effect: 'heartbeat',
           unlockCg: 'celine_silk',
           text: {
-            ckb: 'کاتێک سێلین بانگت دەکاتە ژوورەوە بۆ بینینی بەڵگەیەک، لەسەر سیسەمەکە بە جلی خەوی ئاوریشمی سپییەوە دانیشتووە و قژی هێشتا لە دوای خۆشتن شێدارە! خێرا هەوڵ دەدات وێنە کۆنەکەتان بشارێتەوە و ڕوومەتی دەسووتێت لە شەرمدا: «سـ-سەیری ئەوە مەکە! باشە... هێشتا هەموو شەوێک پێش خەوتن سەیری دەکەم!»',
-            en: 'Fresh from an evening bath with damp silver hair, Celine sits on her bed in pearl-white silk nightwear, scrambling to hide an old photo of the two of you: “D-Don’t look at that! Fine… I still keep it beside my pillow every night!”',
+            ckb: 'سێلین لەسەر سیسەمەکە بە جلی خەوی ئاوریشمی سپییەوە دانیشتووە و ڕوومەتی دەسووتێت لە شەرمدا: «باشە... هێشتا هەموو شەوێک پێش خەوتن سەیری وێنەکەمان دەکەم!»',
+            en: 'Celine sits on her bed in pearl-white silk nightwear, blushing deeply: “Fine… I still keep our photo beside my pillow every night!”',
           },
+        },
+      ],
+    },
+    spaObject: {
+      label: { ckb: '🌫️ ڕووبەڕووبوونەوە لەبەردەم حەمامە هەڵمدارەکەی سێلین', en: '🌫️ Step Toward Celine’s Steamy Shower Glass' },
+      discoveryTitle: { ckb: 'پشت شوشە تەمگرتووەکەی سێلین', en: 'Celine Behind Frosted Steam' },
+      beats: [
+        {
+          speaker: 'narrator',
+          image: '/assets/celine_spa.jpg',
+          camera: 'close',
+          text: {
+            ckb: 'دەنگی ئاوی گەرم تازە وەستاوە و تەواوی ژوورەکە پڕ بووە لە هەوری سپی و تەمی سەر شوشەکە. لەناکاو دەرگا شوشەییەکە دەکرێتەوە و سێلین بە خاولییەکی سپییەوە ڕێک لەبەردەمت دەردەکەوێت!',
+            en: 'The warm shower just turned off, filling the suite with thick white steam. Suddenly the frosted glass slides open and Celine steps out clutching a white bath towel!',
+          },
+        },
+        {
+          speaker: 'celine',
+          image: '/assets/celine_spa.jpg',
+          camera: 'intimate_zoom',
+          effect: 'lightning',
+          unlockCg: 'celine_spa',
+          text: {
+            ckb: 'سێلین لە شۆک و شەرمدا لە جێی خۆی وشک دەبێت، خاولییەکە توندتر بە سنگییەوە دەگرێت و تەواوی ڕووخسار و شانە تەڕەکانی سوور هەڵدەگەڕێن: «تـ-تۆ چۆن هێشتا لێرەیت؟! وتم لە هۆڵەکە چاوەڕێم بکە! ئـ-ئاوڕ بدەرەوە سەیرم مەکە ئاوا!»',
+            en: 'Celine freezes in the swirling steam, clutching the towel tight against her chest as acrimson blush spreads down her wet shoulders: “W-Why are you right outside the shower?! Don’t stare at me like that!”',
+          },
+        },
+      ],
+      choices: [
+        {
+          id: 'celine_spa_bold',
+          style: 'bold',
+          triggerHeartbeat: true,
+          text: { ckb: '🔥 هەنگاوێک بچۆ ناو هەڵمەکە و بە نەرمی دەست بخەرە سەر شانی: «بۆچی چاوم لابەم؟»', en: '🔥 Step into the steam and touch her warm shoulder: “Why look away?”' },
+          affectionDelta: 15,
+          desireDelta: 19,
+          trustDelta: 6,
+          followUpBeats: [
+            {
+              speaker: 'celine',
+              image: '/assets/celine_spa.jpg',
+              camera: 'intimate_zoom',
+              effect: 'heartbeat',
+              text: {
+                ckb: 'هەناسەی سێلین دەلەرزێت و چیدیکە پاشەکشە ناکات؛ ناوچەوانی دەنووسێنێت بە شانتەوە لە ناو هەڵمە گەرمەکەدا: «شێتیت... بەڕاستی شێتم دەکەیت. دەستم بگرە و مەهێڵە سەرمام بێت.»',
+                en: 'Her breath trembles—and instead of pulling away, she rests her damp forehead against your shoulder in the steam: “You drive me crazy… hold me close then.”',
+              },
+            },
+          ],
+        },
+        {
+          id: 'celine_spa_tender',
+          style: 'tender',
+          text: { ckb: '💖 خاولییەکی وشکی بچووک بدە دەستی و قژە تەڕەکەی بۆ وشک بکەرەوە', en: '💖 Gently dry her damp silver hair with a soft warm towel' },
+          affectionDelta: 14,
+          desireDelta: 15,
+          trustDelta: 11,
+          followUpBeats: [
+            {
+              speaker: 'celine',
+              image: '/assets/celine_spa.jpg',
+              camera: 'close',
+              effect: 'warm_glow',
+              text: {
+                ckb: 'سێلین بە هێواشی چاوە بنەوشەییەکانی دادەخات کاتێک پەنجەکانت بە قژیدا دەهێنیت: «ڕێک وەک شەوەکانی پاریس... کەس وەک تۆ نەیدەزانی چۆن دڵم ئارام بکاتەوە.»',
+                en: 'She closes her violet eyes softly under your touch: “Just like Paris… nobody ever touched me as gently as you.”',
+              },
+            },
+          ],
         },
       ],
     },
@@ -155,8 +375,8 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
           effect: 'warm_glow',
           unlockCg: 'celine_dress',
           text: {
-            ckb: 'لە گۆشە تاریکەکەی پشت شوشە باراناوییەکەدا، سێلین بە عەزیی کۆرسێتی ڕەشەوە چاوەڕێت دەکات و یەخەی چاکەتەکەت ڕادەکێشێت: «پێم وابوو نایەیت... لێرە کەس ناتوانێت بمانبینێت.»',
-            en: 'Behind the rain-misted ferns, Celine waits in her black corset dress, pulling you close by your collar: “Nobody can see us back here…”',
+            ckb: 'لە گۆشە تاریکەکەی پشت شوشە باراناوییەکەدا، سێلین بە عەزیی کۆرسێتی ڕەشەوە چاوەڕێت دەکات و یەخەی چاکەتەکەت ڕادەکێشێت: «لێرە کەس ناتوانێت بمانبینێت.»',
+            en: 'Behind the rain-misted ferns, Celine waits in her black corset dress, pulling you close: “Nobody can see us back here…”',
           },
         },
       ],
@@ -183,8 +403,8 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
           effect: 'heartbeat',
           unlockCg: 'layla_swim',
           text: {
-            ckb: 'لەیلا دەرگای ژووری پشت شانۆت لێ دەکاتەوە لە کاتێکدا خۆی گۆڕیوە بۆ بیکینییە سەوزەکە و زنجیرە زێڕینەکەی کەمەری بۆ چوونە سەربان! بە زەردەخەنەیەکی گەرمەوە پشتت تێدەکات: «وەرە قفڵی ئەم زنجیرەیەم بۆ ببەستە پێش ئەوەی بە دزییەوە سەربکەوین بۆ مەلەوانگەکەی سەربان...»',
-            en: 'Layla lets you into her backstage room already dressed in her emerald bikini and gold waist chain: “Come fasten this chain for me before we sneak up to the rooftop pool…”',
+            ckb: 'لەیلا دەرگای ژووری پشت شانۆت لێ دەکاتەوە بە بیکینییە سەوزەکە و زنجیرە زێڕینەکەی کەمەریەوە! «وەرە قفڵی ئەم زنجیرەیەم بۆ ببەستە پێش ئەوەی سەربکەوین بۆ سەربان...»',
+            en: 'Layla lets you in dressed in her emerald bikini and gold waist chain: “Come fasten this chain for me…”',
           },
         },
       ],
@@ -209,8 +429,8 @@ export const TOWER_HOTSPOTS: TowerHotspot[] = [
           image: '/assets/bg_lounge.jpg',
           camera: 'normal',
           text: {
-            ckb: 'کارمەندی شەوانەی لۆبی بە چرپە پێت دەڵێت: «ئاسانسۆرە زێڕینەکەی لای چەپ ڕاستەوخۆ دەتباتە ژوورە تایبەتەکان و کەپری نهۆمی ١٨ بێ ئەوەی کەس پێت بزانێت.»',
-            en: 'The night concierge whispers: “The private west elevator takes you straight to the private suites and the 18th-floor rooftop cabanas.”',
+            ckb: 'کارمەندی شەوانەی لۆبی بە چرپە پێت دەڵێت: «ئاسانسۆرە زێڕینەکە دەتباتە ژوورە تایبەتەکان و حەمامە هەڵمدارەکانی نهۆمی ١٦ تا ١٨.»',
+            en: 'The concierge whispers: “The private elevator unlocks every private suite, marble bath, and rooftop jacuzzi.”',
           },
         },
       ],

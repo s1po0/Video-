@@ -29,8 +29,8 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({
           <h3>
             <Flame size={17} />{' '}
             {locale === 'ckb'
-              ? 'ژووری جلوبەرگە گەرمەکان (١٢ ستایل)'
-              : 'Midnight Wardrobe (12 Outfits)'}
+              ? 'ژووری جلوبەرگ و هەڵم (١٥ ستایل)'
+              : 'Midnight Wardrobe (15 Outfits)'}
           </h3>
           <button className="icon-btn" onClick={onClose}>
             <X size={19} />

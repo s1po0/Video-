@@ -198,6 +198,7 @@ export const App: React.FC = () => {
   const [showMixology, setShowMixology] = useState(false);
   const [sceneAiDraft, setSceneAiDraft] = useState('');
   const [isSceneAiLoading, setIsSceneAiLoading] = useState(false);
+  const [steamBlurLevel, setSteamBlurLevel] = useState(0);
 
   const [selectedLoc, setSelectedLoc] = useState<LocationId | null>(null);
   const [selectedHotspot, setSelectedHotspot] = useState<TowerHotspot | null>(
@@ -847,6 +848,30 @@ export const App: React.FC = () => {
       heroine: spot.privateOwner,
       beats: spot.secretObject.beats,
       beatIndex: 0,
+      choices: spot.secretObject.choices,
+    });
+    setScreen('scene');
+  };
+
+  const handleInspectSpaScene = (spot: TowerHotspot) => {
+    if (!spot.spaObject) return;
+    audioEngine.init();
+    audioEngine.setMood('passionate_strings');
+    triggerHaptic('large');
+    setSelectedHotspot(null);
+    setSelectedLoc(null);
+    setSteamBlurLevel(2);
+    if (spot.privateOwner) {
+      advanceTimeAndUpdateHeroine(spot.privateOwner, 10, 15, 5, {
+        spendEnergy: false,
+      });
+    }
+    setEncounter({
+      title: spot.spaObject.discoveryTitle,
+      heroine: spot.privateOwner,
+      beats: spot.spaObject.beats,
+      beatIndex: 0,
+      choices: spot.spaObject.choices,
     });
     setScreen('scene');
   };
@@ -1363,6 +1388,17 @@ export const App: React.FC = () => {
                         >
                           {loc(selectedHotspot.secretObject.label, locale)}
                         </button>
+                        {selectedHotspot.spaObject && (
+                          <button
+                            type="button"
+                            className="secret-inspect-btn spa-hot-btn"
+                            onClick={() =>
+                              handleInspectSpaScene(selectedHotspot)
+                            }
+                          >
+                            {loc(selectedHotspot.spaObject.label, locale)}
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1579,13 +1615,43 @@ export const App: React.FC = () => {
             <motion.div
               key={resolvedStageImage}
               className={`scene-artwork cam-${activeBeat.camera || 'normal'}`}
-              style={{ backgroundImage: `url(${resolvedStageImage})` }}
+              style={{
+                backgroundImage: `url(${resolvedStageImage})`,
+                filter:
+                  steamBlurLevel === 2
+                    ? 'blur(13px) brightness(1.06)'
+                    : steamBlurLevel === 1
+                    ? 'blur(5px) brightness(1.03)'
+                    : 'none',
+                transition: 'filter 0.45s ease',
+              }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.45 }}
             />
           </AnimatePresence>
+
+          {steamBlurLevel > 0 && (
+            <div className="frosted-steam-layer">
+              <button
+                type="button"
+                className="wipe-steam-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerHaptic('medium');
+                  audioEngine.playEffect('heartbeat');
+                  fireBurst('flame');
+                  setSteamBlurLevel((lv) => Math.max(0, lv - 1));
+                }}
+              >
+                🌫️{' '}
+                {locale === 'ckb'
+                  ? `سڕینی هەڵم و تەمی سەر شوشەکە (${steamBlurLevel}/2)`
+                  : `Wipe Frosted Steam (${steamBlurLevel}/2)`}
+              </button>
+            </div>
+          )}
 
           <div className="scene-gradient-overlay" onClick={handleSceneTap} />
           <AtmosphereCanvas mode="candle_embers" intensity={0.9} />

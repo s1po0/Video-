@@ -12,6 +12,14 @@ export interface OutfitOption {
 export const HEROINE_OUTFITS: Record<HeroineId, OutfitOption[]> = {
   layla: [
     {
+      id: 'layla_spa',
+      heroine: 'layla',
+      name: { ckb: 'بانیۆی کەف و گوڵەباخ', en: 'Rose-Petal Bubble Bath' },
+      tag: { ckb: '🌫️ هەڵم و کەف', en: '🌫️ Steamy Bath' },
+      image: '/assets/layla_spa.jpg',
+      aiDesc: 'soaking in a candlelit marble bubble bath veiled in thick white foam, rose petals, and warm steam clouds',
+    },
+    {
       id: 'layla_crimson',
       heroine: 'layla',
       name: { ckb: 'ئاوریشمی سووری ژووری خەو', en: 'Crimson Silk Slip & Robe' },
@@ -46,6 +54,14 @@ export const HEROINE_OUTFITS: Record<HeroineId, OutfitOption[]> = {
   ],
   celine: [
     {
+      id: 'celine_spa',
+      heroine: 'celine',
+      name: { ckb: 'خاولی و شوشەی تەمگرتوو', en: 'Steamy Shower Towel' },
+      tag: { ckb: '🌫️ هەڵم و شوشە', en: '🌫️ Frosted Steam' },
+      image: '/assets/celine_spa.jpg',
+      aiDesc: 'behind misty frosted shower glass wrapped tightly in a white spa towel amid swirling warm steam',
+    },
+    {
       id: 'celine_dress',
       heroine: 'celine',
       name: { ckb: 'کۆرسێتی ڕەشی نیوەشەو', en: 'Black Sweetheart Corset Mini' },
@@ -79,6 +95,14 @@ export const HEROINE_OUTFITS: Record<HeroineId, OutfitOption[]> = {
     },
   ],
   aria: [
+    {
+      id: 'aria_spa',
+      heroine: 'aria',
+      name: { ckb: 'جاکوزیی هەڵمداری سەربان', en: 'Rooftop Foam Jacuzzi' },
+      tag: { ckb: '🌫️ جاکوزیی گەرم', en: '🌫️ Hot Jacuzzi' },
+      image: '/assets/aria_spa.jpg',
+      aiDesc: 'soaking in the steaming outdoor rooftop jacuzzi covered in thick white bubble foam under starry skies',
+    },
     {
       id: 'aria_swim',
       heroine: 'aria',

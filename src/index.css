@@ -1729,4 +1729,39 @@ textarea {
   line-height: 1.35;
 }
 
+.spa-hot-btn {
+  border-color: rgba(251, 113, 133, 0.95);
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.52), rgba(217, 119, 6, 0.42));
+}
+
+.frosted-steam-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 45%,
+    rgba(255, 255, 255, 0.16),
+    rgba(255, 255, 255, 0.34)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wipe-steam-btn {
+  pointer-events: auto;
+  padding: 12px 20px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.75);
+  background: rgba(20, 10, 32, 0.82);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.88rem;
+  box-shadow: 0 10px 30px rgba(225, 29, 72, 0.48);
+  cursor: pointer;
+}
+
+
 
