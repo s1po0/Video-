@@ -224,7 +224,7 @@ public class DeviceDownloader extends Plugin {
             intent.putExtra("format", format); intent.putExtra("quality", quality); intent.putExtra("language", language);
             intent.putExtra("start", (int) start); intent.putExtra("end", (int) end);
             intent.putExtra("folder", getContext().getSharedPreferences("download_settings", 0).getString("folder", ""));
-            getContext().getSharedPreferences("download_state", 0).edit().putString("state", "queued").putString("message", "ئامادەکردنی دابەزاندن...").putLong("queued_at", System.currentTimeMillis()).putInt("percent", 0).apply();
+            getContext().getSharedPreferences("download_state", 0).edit().putString("state", "queued").putString("message", "ئامادەکردنی دابەزاندن...").putLong("queued_at", System.currentTimeMillis()).putInt("percent", -1).apply();
             queuedCreated = true;
             ContextCompat.startForegroundService(getContext(), intent);
             call.resolve();

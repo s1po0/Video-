@@ -65,7 +65,7 @@ public class DownloadService extends Service {
         if (intent == null || running) return START_NOT_STICKY;
         running = true;
         startForeground(ID, notification("ئامادەکردنی دابەزاندن...", -1, true));
-        state("running", "ئامادەکردنی دابەزاندن...", 0);
+        state("running", "ئامادەکردنی دابەزاندن...", -1);
         new Thread(() -> runJob(intent, startId), "slicevid-download").start();
         return START_NOT_STICKY;
     }
@@ -85,6 +85,7 @@ public class DownloadService extends Service {
             YoutubeDLRequest r = new YoutubeDLRequest(link);
             r.addOption("--no-playlist"); r.addOption("--no-warnings");
             r.addOption("--concurrent-fragments", "4");
+            r.addOption("--socket-timeout", "30"); r.addOption("--retries", "3"); r.addOption("--fragment-retries", "3");
             r.addOption("-o", new File(dir, "download.%(ext)s").getAbsolutePath());
             if (kind.equals("subtitle")) {
                 r.addOption("--skip-download"); r.addOption("--write-subs"); r.addOption("--write-auto-subs");
@@ -92,7 +93,15 @@ public class DownloadService extends Service {
                 r.addOption("--sub-format", "vtt/best"); r.addOption("--convert-subs", format);
             } else {
                 int start = intent.getIntExtra("start", 0), end = intent.getIntExtra("end", 0);
-                if (end > 0) { r.addOption("--download-sections", "*" + start + "-" + end); r.addOption("--force-keyframes-at-cuts"); }
+                if (end > 0) {
+                    r.addOption("--download-sections", "*" + start + "-" + end);
+                    r.addOption("--force-keyframes-at-cuts");
+                    // yt-dlp delegates sections to ffmpeg, whose ordinary progress
+                    // is on stderr and is not forwarded by the Android wrapper.
+                    // H.264 re-encoding is needed for precise clip/subtitle timing.
+                    // A faster x264 preset reduces CPU time without changing codecs.
+                    r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? " -preset veryfast" : ""));
+                }
                 if (format.equals("mp3")) { r.addOption("-x"); r.addOption("--audio-format", "mp3"); }
                 else {
                     String quality = intent.getStringExtra("quality");
@@ -111,12 +120,19 @@ public class DownloadService extends Service {
                     }
                 }
             }
+            final int clipDuration = intent.getIntExtra("end", 0) - intent.getIntExtra("start", 0);
             YoutubeDL.getInstance().execute(r, UUID.randomUUID().toString(), (p, eta, line) -> {
                 long now = System.currentTimeMillis();
-                if (now - lastProgress > 700) { lastProgress = now; state("running", "دابەزاندن... " + Math.max(0, Math.min(100, (int)(float)p)) + "%", Math.max(0, Math.min(100, (int)(float)p))); }
+                if (now - lastProgress > 700) {
+                    int percent = DownloadProgress.percent(line, p, kind.equals("video") && intent.getIntExtra("end", 0) > 0 ? clipDuration : 0);
+                    if (percent >= 0) {
+                        lastProgress = now;
+                        state("running", "قۆناغی ئێستا... " + percent + "%", percent);
+                    }
+                }
                 return Unit.INSTANCE;
             });
-            state("running", "پاشەکەوتکردنی فایل...", 100);
+            state("running", "پاشەکەوتکردنی فایل...", -1);
             File[] outputs = dir.listFiles((d, name) -> name.endsWith("." + format));
             if (outputs == null || outputs.length == 0) throw new Exception("فایلەکە بەردەست نییە یان دروست نەبوو.");
             // yt-dlp's final media file has this exact name. Never select an

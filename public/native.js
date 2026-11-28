@@ -53,7 +53,7 @@ async function updateStatus() {
   try {
     const data = await native.status(); taskState = data.state;
     if (!loading && data.state !== 'idle') {
-      status.hidden = false; statusText.textContent = data.message; $('progress').value = data.percent || 0;
+      status.hidden = false; statusText.textContent = data.message; if (data.percent < 0) $('progress').removeAttribute('value'); else $('progress').value = data.percent || 0;
       status.classList.toggle('failed', data.state === 'error');
       $('background-hint').hidden = data.state !== 'running' && data.state !== 'queued';
     }
@@ -84,7 +84,7 @@ $('choose-folder').onclick = async () => { try { const folder = await native.cho
 $('form').addEventListener('submit', async (e) => {
   e.preventDefault(); if (!native) return;
   const url = $('url').value.trim(); error.hidden = true; $('details').hidden = true;
-  loading = true; buttons(); status.hidden = false; $('background-hint').hidden = true; statusText.textContent = 'ئامادەکردنی ڤیدیۆ... تکایە چاوەڕێ بکە.'; $('progress').value = 0;
+  loading = true; buttons(); status.hidden = false; $('background-hint').hidden = true; statusText.textContent = 'ئامادەکردنی ڤیدیۆ... تکایە چاوەڕێ بکە.'; $('progress').removeAttribute('value');
   try {
     const video = await native.info({ url });
     currentUrl = url; duration = Math.floor(video.duration || 0);
@@ -112,7 +112,7 @@ $('download').addEventListener('click', async () => {
   try {
     const range = selectedRange();
     await native.download({ url: currentUrl, ...range, format: $('format').value, quality: $('quality').value });
-    taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندن دەستی پێکرد...'; $('progress').value = 0; status.scrollIntoView({behavior: 'smooth', block: 'center'}); updateStatus();
+    taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندن دەستی پێکرد...'; $('progress').removeAttribute('value'); status.scrollIntoView({behavior: 'smooth', block: 'center'}); updateStatus();
   } catch (err) { showError(err.message); }
 });
 $('subtitle').addEventListener('click', async () => {
@@ -121,6 +121,6 @@ $('subtitle').addEventListener('click', async () => {
   try {
     const range = selectedRange();
     await native.subtitles({ url: currentUrl, ...range, language: $('languages').value, format: $('subformat').value });
-    taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندنی ژێرنووس...'; $('progress').value = 0; updateStatus();
+    taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندنی ژێرنووس...'; $('progress').removeAttribute('value'); updateStatus();
   } catch (err) { showError(err.message); }
 });
