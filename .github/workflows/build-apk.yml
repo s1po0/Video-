@@ -39,44 +39,40 @@ jobs:
           npm run build
           npx cap sync android
 
-      - name: Load permanent keystore & build signed APK
+      - name: Decode GitHub Secret Keystore & build signed APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          mkdir -p signing
-          if [ ! -f "signing/midnight-velvet-release.jks" ]; then
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "Using permanent keystore from GitHub Actions Secrets (ANDROID_KEYSTORE_BASE64)"
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d ' \n\r\t' | base64 -d > android/app/release-key.jks
+          else
+            echo "WARNING: ANDROID_KEYSTORE_BASE64 secret not set yet; using temporary fallback key"
             keytool -genkeypair -v \
-              -keystore signing/midnight-velvet-release.jks \
+              -keystore android/app/release-key.jks \
               -alias midnightvelvet \
               -keyalg RSA \
               -keysize 2048 \
-              -validity 36500 \
+              -validity 10000 \
               -storepass midnightvelvet2026 \
               -keypass midnightvelvet2026 \
               -dname "CN=Midnight Velvet, OU=Games, O=MidnightVelvet, L=Erbil, S=Erbil, C=IQ"
           fi
-          cp -f signing/midnight-velvet-release.jks android/app/release-key.jks
-          {
-            echo "MIDNIGHT VELVET — PERMANENT ANDROID SIGNING KEYSTORE"
-            echo "Keystore File  : signing/midnight-velvet-release.jks"
-            echo "Package Name   : com.midnightvelvet.vn"
-            echo "Key Alias      : midnightvelvet"
-            echo "Store Password : midnightvelvet2026"
-            echo "Key Password   : midnightvelvet2026"
-            echo "Validity       : 100 Years (36500 days)"
-            echo "----------------------------------------------------"
-            keytool -list -v -keystore signing/midnight-velvet-release.jks -alias midnightvelvet -storepass midnightvelvet2026 | grep -E "Alias name:|Valid from:|SHA1:|SHA256:"
-          } > signing/KEYSTORE-INFO.txt
-          cat signing/KEYSTORE-INFO.txt
           chmod +x android/gradlew
           cd android
           ./gradlew assembleRelease --no-daemon
+          rm -f app/release-key.jks
 
-      - name: Save permanent keystore & signed APK to branch
+      - name: Save signed APK to branch
         run: |
           mkdir -p release
           cp android/app/build/outputs/apk/release/app-release.apk release/Midnight-Velvet.apk
-          ls -lh signing/midnight-velvet-release.jks release/Midnight-Velvet.apk
+          ls -lh release/Midnight-Velvet.apk
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f signing/midnight-velvet-release.jks signing/KEYSTORE-INFO.txt release/Midnight-Velvet.apk
-          git commit -m "chore: persist permanent signing keystore & signed APK [skip ci]" || true
+          git add -f release/Midnight-Velvet.apk
+          git commit -m "chore: save signed Midnight-Velvet.apk [skip ci]" || true
           git push origin HEAD:arena/4b164227-video

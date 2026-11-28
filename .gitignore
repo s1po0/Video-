@@ -6,5 +6,6 @@ dist
 *.apk
 !release/Midnight-Velvet.apk
 *.jks
-!signing/midnight-velvet-release.jks
+*.p12
+*.keystore
 Unselected files

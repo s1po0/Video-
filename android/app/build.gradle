@@ -19,9 +19,9 @@ android {
             def ksFile = file("release-key.jks")
             if (ksFile.exists()) {
                 storeFile ksFile
-                storePassword "midnightvelvet2026"
-                keyAlias "midnightvelvet"
-                keyPassword "midnightvelvet2026"
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: "midnightvelvet2026"
+                keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "midnightvelvet"
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: "midnightvelvet2026"
                 v1SigningEnabled true
                 v2SigningEnabled true
             }
