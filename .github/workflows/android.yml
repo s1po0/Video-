@@ -56,8 +56,14 @@ jobs:
           else
             echo 'No signing key configured; build will be unsigned.'
           fi
-      - run: ./gradlew testReleaseUnitTest assembleRelease
+      - name: Build and test Android
         working-directory: android
+        run: |
+          if ! ./gradlew testReleaseUnitTest assembleRelease > /tmp/android-build-output 2>&1; then
+            detail=$(tail -n 75 /tmp/android-build-output | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+            echo "::error title=Android build::$detail"
+            exit 1
+          fi
       - name: Verify signed APK
         if: env.KEYSTORE_BASE64 != ''
         run: |
