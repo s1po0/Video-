@@ -39,15 +39,11 @@ jobs:
           npm run build
           npx cap sync android
 
-      - name: Load permanent keystore (or initialize once) & build signed APK
+      - name: Load permanent keystore & build signed APK
         run: |
           mkdir -p signing
-          if [ -f "signing/midnight-velvet-release.jks" ]; then
-            echo "=== Using EXISTING permanent keystore: signing/midnight-velvet-release.jks ==="
-          else
-            echo "=== Initializing ONE-TIME permanent keystore: signing/midnight-velvet-release.jks ==="
+          if [ ! -f "signing/midnight-velvet-release.jks" ]; then
             keytool -genkeypair -v \
-              -storetype PKCS12 \
               -keystore signing/midnight-velvet-release.jks \
               -alias midnightvelvet \
               -keyalg RSA \
@@ -57,54 +53,30 @@ jobs:
               -keypass midnightvelvet2026 \
               -dname "CN=Midnight Velvet, OU=Games, O=MidnightVelvet, L=Erbil, S=Erbil, C=IQ"
           fi
-
-          CERT_INFO=$(keytool -list -v -keystore signing/midnight-velvet-release.jks -alias midnightvelvet -storepass midnightvelvet2026 | grep -E "Alias name:|Valid from:|SHA1:|SHA256:")
-          cat <<EOF > signing/KEYSTORE-INFO.txt
-          =============================================================
-          MIDNIGHT VELVET — PERMANENT ANDROID SIGNING KEYSTORE
-          =============================================================
-          Keystore File  : signing/midnight-velvet-release.jks
-          Package Name   : com.midnightvelvet.vn
-          Key Alias      : midnightvelvet
-          Store Password : midnightvelvet2026
-          Key Password   : midnightvelvet2026
-          Validity       : 100 Years (36,500 days)
-          -------------------------------------------------------------
-          Certificate Details & Fingerprints:
-          $CERT_INFO
-          =============================================================
-          Keep signing/midnight-velvet-release.jks intact across all
-          future updates — every higher versionCode signed with this
-          exact file updates the installed Android app seamlessly
-          without uninstalling or losing save data!
-          EOF
+          cp -f signing/midnight-velvet-release.jks android/app/release-key.jks
+          {
+            echo "MIDNIGHT VELVET — PERMANENT ANDROID SIGNING KEYSTORE"
+            echo "Keystore File  : signing/midnight-velvet-release.jks"
+            echo "Package Name   : com.midnightvelvet.vn"
+            echo "Key Alias      : midnightvelvet"
+            echo "Store Password : midnightvelvet2026"
+            echo "Key Password   : midnightvelvet2026"
+            echo "Validity       : 100 Years (36500 days)"
+            echo "----------------------------------------------------"
+            keytool -list -v -keystore signing/midnight-velvet-release.jks -alias midnightvelvet -storepass midnightvelvet2026 | grep -E "Alias name:|Valid from:|SHA1:|SHA256:"
+          } > signing/KEYSTORE-INFO.txt
           cat signing/KEYSTORE-INFO.txt
-
           chmod +x android/gradlew
           cd android
           ./gradlew assembleRelease --no-daemon
-          ls -lh app/build/outputs/apk/release/
 
-      - name: Verify APK signature & commit permanent key + signed APK
+      - name: Save permanent keystore & signed APK to branch
         run: |
           mkdir -p release
           cp android/app/build/outputs/apk/release/app-release.apk release/Midnight-Velvet.apk
-          echo "=== Verifying Signed APK Certificate ==="
-          keytool -printcert -jarfile release/Midnight-Velvet.apk | grep -E "Owner:|SHA256:" || true
           ls -lh signing/midnight-velvet-release.jks release/Midnight-Velvet.apk
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f signing/midnight-velvet-release.jks signing/KEYSTORE-INFO.txt release/Midnight-Velvet.apk
           git commit -m "chore: persist permanent signing keystore & signed APK [skip ci]" || true
           git push origin HEAD:arena/4b164227-video
-
-      - name: Upload Signed APK & Keystore Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Midnight-Velvet-APK-and-Keystore
-          path: |
-            release/Midnight-Velvet.apk
-            signing/midnight-velvet-release.jks
-            signing/KEYSTORE-INFO.txt
-          if-no-files-found: error
