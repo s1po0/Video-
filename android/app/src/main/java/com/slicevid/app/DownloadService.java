@@ -168,7 +168,7 @@ public class DownloadService extends Service {
                 }
                 r.addOption("--force-keyframes-at-cuts");
                 // FFmpeg handles sections; re-encoding keeps cuts aligned with subtitles.
-                r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? " -preset veryfast" : ""));
+                r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? " -preset superfast" : ""));
             }
             if (format.equals("mp3")) { r.addOption("-x"); r.addOption("--audio-format", "mp3"); }
             else {
@@ -192,21 +192,23 @@ public class DownloadService extends Service {
     private void executeWithFallback(Intent intent, File dir, boolean alternate, boolean parallel, boolean bounded, String kind, int clipDuration) throws Exception {
         ClipDownload.run(bounded, useBounded ->
             DownloadSpeed.run(parallel,
-                fast -> executeRequest(buildRequest(intent, dir, alternate, fast, useBounded), intent, kind, clipDuration),
+                fast -> executeRequest(buildRequest(intent, dir, alternate, fast, useBounded), intent, kind, clipDuration, useBounded),
                 () -> state("running", "دابەزاندن بە ڕێگای ئاسایی دووبارە دەست پێ دەکات...", -1),
                 () -> clearJobFiles(dir)),
             () -> state("running", "ڕێگای خێرا کارینەکرد؛ بە ڕێگای ئاسایی هەوڵ دەدرێتەوە...", -1),
             () -> clearJobFiles(dir));
     }
 
-    private void executeRequest(YoutubeDLRequest request, Intent intent, String kind, int clipDuration) throws Exception {
+    private void executeRequest(YoutubeDLRequest request, Intent intent, String kind, int clipDuration, boolean bounded) throws Exception {
         YoutubeDL.getInstance().execute(request, UUID.randomUUID().toString(), (p, eta, line) -> {
             long now = System.currentTimeMillis();
             if (now - lastProgress > 700) {
                 int percent = DownloadProgress.percent(line, p, kind.equals("video") && intent.getIntExtra("end", 0) > 0 ? clipDuration : 0);
                 if (percent >= 0) {
                     lastProgress = now;
-                    state("running", "قۆناغی ئێستا... " + percent + "%", percent);
+                    String label = ClipDownload.useBoundedRequests(kind, intent.getStringExtra("format"), intent.getIntExtra("end", 0))
+                        ? (bounded ? "بڕینی خێرا" : "بڕینی ئاسایی") : "قۆناغی ئێستا";
+                    state("running", label + "... " + percent + "%", percent);
                 }
             }
             return Unit.INSTANCE;

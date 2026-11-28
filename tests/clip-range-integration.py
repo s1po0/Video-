@@ -28,6 +28,13 @@ with tempfile.TemporaryDirectory() as temporary:
         daemon_threads = True
 
     class Handler(http.server.BaseHTTPRequestHandler):
+        protocol_version = 'HTTP/1.0' if os.environ.get('TEST_HTTP_10') == '1' else 'HTTP/1.1'
+
+        def handle(self):
+            try:
+                super().handle()
+            except ConnectionResetError:
+                pass
         def log_message(self, *args):
             pass
 
@@ -37,7 +44,7 @@ with tempfile.TemporaryDirectory() as temporary:
             match = re.fullmatch(r'bytes=(\d+)-(\d*)', self.headers.get('Range', ''))
             start = int(match[1]) if match else 0
             end = min(int(match[2]) if match and match[2] else size - 1, size - 1)
-            self.server.ranges.append((start, end, bool(match and match[2])))
+            self.server.ranges.append((self.path, start, end, bool(match and match[2]), self.client_address))
             if start >= size:
                 self.send_error(416)
                 return
@@ -69,8 +76,8 @@ with tempfile.TemporaryDirectory() as temporary:
         infofile=root/'info.json'; infofile.write_text(json.dumps(info))
         cmd = ['python3', '-m', 'yt_dlp', '-f','137+140', '--load-info-json', str(infofile), '--no-playlist', '--ffmpeg-location', ffmpeg,
                '--download-sections', '*3-15', '--force-keyframes-at-cuts',
-               '--downloader-args', 'ffmpeg_i:-request_size 8388608 -short_seek_size 8388608',
-               '--downloader-args', 'ffmpeg:-progress pipe:1 -nostats -preset veryfast',
+               '--downloader-args', 'ffmpeg_i:-request_size 8388608 -short_seek_size 8388608 -multiple_requests 1',
+               '--downloader-args', 'ffmpeg:-progress pipe:1 -nostats -preset superfast',
                '-o', str(target)]
         if os.environ.get('TEST_BROKEN_FFMPEG') == '1':
             broken = root / 'libffmpeg_broken.so'
@@ -85,9 +92,12 @@ with tempfile.TemporaryDirectory() as temporary:
         if result.returncode:
             raise AssertionError(result.stderr + '\n' + result.stdout)
         assert 'out_time_us=' in result.stdout, result.stdout
-        bounded = [(a, b) for a, b, bounded in server.ranges if bounded]
-        assert bounded, f'no bounded requests: {server.ranges}'
-        assert all(b - a + 1 <= 8388608 for a, b in bounded), bounded
+        bounded = [(path, a, b, client) for path, a, b, is_bounded, client in server.ranges if is_bounded]
+        assert server.ranges and len(bounded) == len(server.ranges), f'unbounded request: {server.ranges}'
+        assert {path for path, _, _, _ in bounded} == {'/video.mp4', '/audio.m4a'}, bounded
+        assert all(b - a + 1 <= 8388608 for _, a, b, _ in bounded), bounded
+        if Handler.protocol_version == 'HTTP/1.1':
+            assert len({client for _, _, _, client in bounded}) < len(bounded), f'no persistent connections: {bounded}'
         clip = root / 'clip.mp4'
         assert clip.is_file() and clip.stat().st_size > 1000
         probe = subprocess.run([ffmpeg, '-hide_banner', '-i', str(clip)], capture_output=True, text=True)
