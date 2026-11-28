@@ -2,6 +2,8 @@ package com.slicevid.app;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.ContentUris;
+import android.database.Cursor;
 import android.content.SharedPreferences;
 import androidx.activity.result.ActivityResult;
 import androidx.core.content.ContextCompat;
@@ -37,15 +39,7 @@ public class DeviceDownloader extends Plugin {
     private void initialize() throws Exception {
         YoutubeDL.getInstance().init(getContext().getApplicationContext());
         FFmpeg.getInstance().init(getContext().getApplicationContext());
-        // The extractor changes regularly. Refresh at most once per day; if it
-        // cannot be refreshed, the bundled copy still gets a chance to work.
-        long last = getContext().getSharedPreferences("extractor", 0).getLong("updated", 0);
-        if (System.currentTimeMillis() - last > 86400000L) {
-            try {
-                YoutubeDL.getInstance().updateYoutubeDL(getContext(), YoutubeDL.UpdateChannel._STABLE);
-                getContext().getSharedPreferences("extractor", 0).edit().putLong("updated", System.currentTimeMillis()).apply();
-            } catch (Exception ignored) { }
-        }
+
     }
 
     private String url(PluginCall call) throws Exception {
@@ -82,7 +76,19 @@ public class DeviceDownloader extends Plugin {
                 YoutubeDLRequest r = request(link);
                 r.addOption("--dump-single-json");
                 r.addOption("--skip-download");
-                JSONObject raw = new JSONObject(YoutubeDL.getInstance().execute(r).getOut());
+                JSONObject raw;
+                try {
+                    raw = new JSONObject(YoutubeDL.getInstance().execute(r).getOut());
+                } catch (Exception first) {
+                    // Updating is slow; only attempt it after extraction fails, at
+                    // most once per day, then retry with the updated extractor.
+                    SharedPreferences prefs = getContext().getSharedPreferences("extractor", 0);
+                    if (System.currentTimeMillis() - prefs.getLong("attempted", 0) < 86400000L) throw first;
+                    prefs.edit().putLong("attempted", System.currentTimeMillis()).apply();
+                    try { YoutubeDL.getInstance().updateYoutubeDL(getContext(), YoutubeDL.UpdateChannel._STABLE); }
+                    catch (Exception ignored) { throw first; }
+                    raw = new JSONObject(YoutubeDL.getInstance().execute(r).getOut());
+                }
                 JSObject out = new JSObject();
                 out.put("title", raw.optString("title", "Video"));
                 out.put("channel", raw.optString("uploader", ""));
@@ -152,6 +158,52 @@ public class DeviceDownloader extends Plugin {
         JSObject result = new JSObject();
         result.put("state", state); result.put("message", p.getString("message", "")); result.put("percent", p.getInt("percent", 0));
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void listDownloads(PluginCall call) {
+        worker.execute(() -> {
+            try {
+                String folder = getContext().getSharedPreferences("download_settings", 0).getString("folder", "");
+                JSArray files = new JSArray();
+                if (folder.isEmpty()) {
+                    Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
+                    String[] columns = {MediaStore.Downloads._ID, MediaStore.Downloads.DISPLAY_NAME, MediaStore.Downloads.MIME_TYPE, MediaStore.Downloads.DATE_ADDED};
+                    try (Cursor c = getContext().getContentResolver().query(collection, columns,
+                            MediaStore.Downloads.RELATIVE_PATH + "=? AND " + MediaStore.Downloads.IS_PENDING + "=0",
+                            new String[]{Environment.DIRECTORY_DOWNLOADS + "/SliceVid/"}, MediaStore.Downloads.DATE_ADDED + " DESC")) {
+                        if (c != null) while (c.moveToNext() && files.length() < 200) {
+                            String name = c.getString(1);
+                            if (name != null && name.startsWith("SliceVid-")) files.put(new JSObject().put("name", name).put("uri", ContentUris.withAppendedId(collection, c.getLong(0)).toString()).put("mime", c.getString(2)));
+                        }
+                    }
+                } else {
+                    Uri tree = Uri.parse(folder);
+                    Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree));
+                    String[] columns = {DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE};
+                    try (Cursor c = getContext().getContentResolver().query(children, columns, null, null, null)) {
+                        if (c != null) while (c.moveToNext() && files.length() < 200) {
+                            String name = c.getString(1);
+                            if (name != null && name.startsWith("SliceVid-")) files.put(new JSObject().put("name", name).put("uri", DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0)).toString()).put("mime", c.getString(2)));
+                        }
+                    }
+                }
+                call.resolve(new JSObject().put("files", files));
+            } catch (Exception e) { fail(call, e); }
+        });
+    }
+
+    @PluginMethod
+    public void openDownload(PluginCall call) {
+        try {
+            Uri uri = Uri.parse(call.getString("uri", ""));
+            if (!"content".equals(uri.getScheme())) throw new Exception("فایلەکە بەردەست نییە.");
+            String mime = getContext().getContentResolver().getType(uri);
+            Intent view = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime == null ? "*/*" : mime);
+            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            getActivity().startActivity(view);
+            call.resolve();
+        } catch (Exception e) { call.reject("نەتوانرا فایلەکە بکرێتەوە؛ لەوانەیە سڕابێتەوە یان ئەپێکی گونجاو پێویست بێت."); }
     }
 
     private void begin(PluginCall call, boolean subtitles) {

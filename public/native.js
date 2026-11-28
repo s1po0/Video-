@@ -1,7 +1,7 @@
 'use strict';
 const $ = (id) => document.getElementById(id);
 const native = window.Capacitor?.Plugins?.DeviceDownloader;
-let currentUrl = '', duration = 0, clipMode = false, loading = false, taskState = 'idle';
+let currentUrl = '', duration = 0, clipMode = false, loading = false, taskState = 'idle', lastState = 'idle';
 const error = $('error'), status = $('status'), statusText = $('status-text');
 
 function showError(message) { error.textContent = message || 'هەڵەیەک ڕوویدا؛ دووبارە هەوڵ بدەوە.'; error.hidden = false; error.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
@@ -57,13 +57,29 @@ async function updateStatus() {
       status.classList.toggle('failed', data.state === 'error');
       $('background-hint').hidden = data.state !== 'running' && data.state !== 'queued';
     }
+    if (data.state === 'done' && lastState !== 'done') refreshDownloads();
+    lastState = data.state;
     buttons();
   } catch (e) { /* next refresh retries */ }
 }
-async function folderLabel() { try { $('folder-label').textContent = (await native.getFolder()).label; } catch {} }
-if (native) { folderLabel(); updateStatus(); setInterval(updateStatus, 2000); document.addEventListener('visibilitychange', () => { if (!document.hidden) updateStatus(); }); }
+async function folderLabel() { try { const label = (await native.getFolder()).label; $('folder-label').textContent = label; $('downloads-folder').textContent = label; } catch {} }
+async function refreshDownloads() {
+  if (!native) return;
+  const list = $('download-list');
+  try {
+    const result = await native.listDownloads(); list.replaceChildren();
+    if (!result.files.length) { list.textContent = 'هیچ فایلێکی SliceVid لەم شوێنە نەدۆزرایەوە.'; return; }
+    result.files.forEach(file => {
+      const item = document.createElement('button'); item.type = 'button'; item.className = 'download-item'; item.dir = 'ltr'; item.textContent = '▶  ' + file.name;
+      item.onclick = async () => { try { await native.openDownload({uri: file.uri}); } catch (err) { showError(err.message); } };
+      list.appendChild(item);
+    });
+  } catch (err) { list.textContent = err.message || 'نەتوانرا لیستی فایلەکان بکرێتەوە.'; }
+}
+$('refresh-downloads').onclick = refreshDownloads;
+if (native) { folderLabel(); refreshDownloads(); updateStatus(); setInterval(updateStatus, 2000); document.addEventListener('visibilitychange', () => { if (!document.hidden) updateStatus(); }); }
 else showError('ئەم پەڕەیە تەنها لە ئەپی ئەندرۆید کار دەکات.');
-$('choose-folder').onclick = async () => { try { const folder = await native.chooseFolder(); $('folder-label').textContent = folder.label; } catch (err) { showError(err.message); } };
+$('choose-folder').onclick = async () => { try { const folder = await native.chooseFolder(); $('folder-label').textContent = folder.label; $('downloads-folder').textContent = folder.label; refreshDownloads(); } catch (err) { showError(err.message); } };
 
 $('form').addEventListener('submit', async (e) => {
   e.preventDefault(); if (!native) return;

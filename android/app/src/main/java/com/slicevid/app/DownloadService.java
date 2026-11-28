@@ -84,6 +84,7 @@ public class DownloadService extends Service {
             FFmpeg.getInstance().init(getApplicationContext());
             YoutubeDLRequest r = new YoutubeDLRequest(link);
             r.addOption("--no-playlist"); r.addOption("--no-warnings");
+            r.addOption("--concurrent-fragments", "4");
             r.addOption("-o", new File(dir, "download.%(ext)s").getAbsolutePath());
             if (kind.equals("subtitle")) {
                 r.addOption("--skip-download"); r.addOption("--write-subs"); r.addOption("--write-auto-subs");

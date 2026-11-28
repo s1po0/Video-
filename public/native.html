@@ -16,7 +16,7 @@
       <label for="url">لینکی YouTube</label>
       <input id="url" type="url" dir="ltr" placeholder="https://youtu.be/..." required autocomplete="off">
       <button type="submit" id="load">پیشاندانی ڤیدیۆ</button>
-      <p class="hint">جارى یەکەم لەوانەیە ئامادەکردن کەمێک کات بخایەنێت.</p>
+      <p class="hint">ئامادەکردن بە ئینتەرنێت و یوتوب پەیوەستە؛ لەوانەیە جارێک کات بخایەنێت.</p>
     </form>
     <p id="error" class="error" role="alert" hidden></p>
     <section class="card status" id="status" hidden role="status" aria-live="polite"><strong id="status-text"></strong><progress id="progress" max="100" value="0"></progress><p id="background-hint" class="hint">دەتوانیت لە ئەپەکە بچیتە دەرەوە؛ دابەزاندن لە پشتەوە بەردەوام دەبێت.</p></section>
@@ -53,6 +53,13 @@
         <div class="grid"><label>زمان<select id="languages" dir="ltr"></select></label><label>فۆرمات<select id="subformat" dir="ltr"><option value="srt">SRT</option><option value="vtt">VTT</option></select></label></div>
         <button id="subtitle" class="secondary" type="button">⬇ دابەزاندنی ژێرنووس</button>
       </article>
+    </section>
+    <section class="card downloads" aria-labelledby="downloads-title">
+      <h2 id="downloads-title">📁 دابەزێنراوەکان</h2>
+      <p class="hint">فایلەکانی SliceVid لە شوێنی ئێستا هەڵبژێردراودا. بۆ بینینی شوێنێکی تر، شوێنی دابەزاندن بگۆڕە.</p>
+      <p class="hint" id="downloads-folder" dir="ltr"></p>
+      <div id="download-list" aria-live="polite"></div>
+      <button id="refresh-downloads" class="secondary" type="button">نوێکردنەوەی لیست</button>
     </section>
     <p class="foot">تەنها ئەو ناوەڕۆکە دابەزێنە کە مافی بەکارهێنانی هەیە. <a href="/licenses/youtubedl-android-LICENSE.txt">GPL-3.0</a> · <a href="https://github.com/yausername/youtubedl-android">youtubedl-android</a></p>
   </main>
