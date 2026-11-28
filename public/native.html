@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ku" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>SliceVid</title>
+  <link rel="stylesheet" href="/native.css">
+</head>
+<body>
+  <header><div class="brand"><span class="logo">▶</span><b>Slice<span>Vid</span></b></div></header>
+  <main>
+    <div class="pill">بێ سێرڤەر · ڕاستەوخۆ لە مۆبایل</div>
+    <h1>ڤیدیۆی یوتوب <em>دابەزێنە</em></h1>
+    <p class="intro">لینکی ڤیدیۆکە لێرە دابنێ؛ دەتوانیت هەمووی یان تەنها بەشێکی دابەزێنیت.</p>
+    <form id="form" class="card">
+      <label for="url">لینکی YouTube</label>
+      <input id="url" type="url" dir="ltr" placeholder="https://youtu.be/..." required autocomplete="off">
+      <button type="submit" id="load">پیشاندانی ڤیدیۆ</button>
+      <p class="hint">جارى یەکەم لەوانەیە ئامادەکردن کەمێک کات بخایەنێت.</p>
+    </form>
+    <p id="error" class="error" role="alert" hidden></p>
+    <section id="details" hidden>
+      <article class="card video">
+        <img id="thumb" alt="" referrerpolicy="no-referrer">
+        <div><h2 id="title"></h2><p id="channel" class="hint"></p></div>
+      </article>
+      <article class="card">
+        <h2>دابەزاندنی ڤیدیۆ</h2>
+        <p class="hint">بۆ هەموو ڤیدیۆکە کاتەکان بە بەتاڵی جێبهێڵە. بۆ بڕین، هەردوو کاتەکە بنووسە.</p>
+        <div class="grid">
+          <label>دەستپێک <input id="start" type="text" inputmode="numeric" dir="ltr" placeholder="00:00"></label>
+          <label>کۆتایی <input id="end" type="text" inputmode="numeric" dir="ltr" placeholder="01:30"></label>
+        </div>
+        <div class="grid">
+          <label>فۆرمات <select id="format" dir="ltr"><option value="mp4">MP4</option><option value="webm">WebM</option><option value="mp3">MP3</option></select></label>
+          <label>کوالێتی <select id="quality" dir="ltr"><option value="best">Best available</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option><option value="360">360p</option></select></label>
+        </div>
+        <button id="download" type="button">⬇ دابەزاندن</button>
+      </article>
+      <article class="card">
+        <h2>دابەزاندنی ژێرنووس</h2>
+        <div class="grid"><label>زمان<select id="languages" dir="ltr"></select></label><label>فۆرمات<select id="subformat" dir="ltr"><option value="srt">SRT</option><option value="vtt">VTT</option></select></label></div>
+        <button id="subtitle" class="secondary" type="button">⬇ دابەزاندنی ژێرنووس</button>
+      </article>
+    </section>
+    <section class="card status" id="status" hidden role="status" aria-live="polite"><span id="status-text"></span><progress id="progress" max="100" value="0"></progress></section>
+    <p class="foot">تەنها ئەو ناوەڕۆکە دابەزێنە کە مافی بەکارهێنانی هەیە.</p>
+  </main>
+  <script src="/native.js"></script>
+</body>
+</html>
