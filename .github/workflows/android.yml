@@ -5,7 +5,7 @@ on:
     paths: ['android/**', 'public/**', 'capacitor.config.json', 'package*.json', '.github/workflows/android.yml']
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -56,40 +56,13 @@ jobs:
           else
             echo 'No signing key configured; build will be unsigned.'
           fi
-      - name: Build and test Android
+      - run: ./gradlew testReleaseUnitTest assembleRelease
         working-directory: android
-        run: |
-          if ! ./gradlew testReleaseUnitTest assembleRelease > /tmp/android-build-output 2>&1; then
-            detail=$(tail -n 75 /tmp/android-build-output | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
-            echo "::error title=Android build::$detail"
-            exit 1
-          fi
       - name: Verify signed APK
         if: env.KEYSTORE_BASE64 != ''
         run: |
           tool=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
           "$tool" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
-      - name: Stage signed APK for delivery
-        if: env.KEYSTORE_BASE64 != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          (async () => {
-            const file = fs.readFileSync('android/app/build/outputs/apk/release/app-release.apk');
-            for (let i = 0, offset = 0; offset < file.length; i++, offset += 20 * 1024 * 1024) {
-              const content = file.subarray(offset, offset + 20 * 1024 * 1024).toString('base64');
-              const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/git/blobs`, {
-                method: 'POST', headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' },
-                body: JSON.stringify({ content, encoding: 'base64' })
-              });
-              const data = await response.json();
-              if (!response.ok || !data.sha) throw new Error(`Could not stage APK: ${response.status} ${data.message || ''}`);
-              console.log(`::notice title=APK part ${i}::${data.sha}`);
-            }
-          })().catch(error => { console.error(error); process.exit(1); });
-          NODE
       - uses: actions/upload-artifact@v4
         with:
           name: slicevid-release-apk
