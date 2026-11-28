@@ -23,6 +23,8 @@ import com.yausername.ffmpeg.FFmpeg;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.UUID;
 import kotlin.Unit;
 
@@ -121,6 +123,15 @@ public class DownloadService extends Service {
             File output = kind.equals("subtitle") ? outputs[0] : new File(dir, "download." + format);
             if (!output.isFile()) throw new Exception("فایلی تەواوی ڤیدیۆکە دروست نەبوو.");
             if (format.equals("mp4")) validateMp4(output);
+            if (kind.equals("subtitle") && intent.getIntExtra("end", 0) > 0) {
+                long startMs = intent.getIntExtra("start", 0) * 1000L;
+                long endMs = intent.getIntExtra("end", 0) * 1000L;
+                if (output.length() > 30L * 1024 * 1024) throw new Exception("فایلی ژێرنووس زۆر گەورەیە.");
+                String text = new String(Files.readAllBytes(output.toPath()), StandardCharsets.UTF_8);
+                String trimmed = SubtitleTrimmer.trim(text, format, startMs, endMs);
+                output = new File(dir, "section." + format);
+                Files.write(output.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
+            }
             publish(output, format, intent.getStringExtra("folder"));
             resultMessage = "تەواو بوو ✓ فایلەکە لە شوێنی هەڵبژێردراو پاشەکەوت کرا.";
         } catch (Exception e) {

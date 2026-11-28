@@ -84,15 +84,18 @@ $('form').addEventListener('submit', async (e) => {
   finally { loading = false; buttons(); }
 });
 
+function selectedRange() {
+  if (!clipMode) return { start: 0, end: 0 };
+  const start = seconds($('start').value), end = seconds($('end').value);
+  if (start >= end || end > duration) throw new Error('کاتی دەستپێک و کۆتایی بپشکنە.');
+  return { start, end };
+}
+
 $('download').addEventListener('click', async () => {
   error.hidden = true;
   try {
-    let start = 0, end = 0;
-    if (clipMode) {
-      start = seconds($('start').value); end = seconds($('end').value);
-      if (start >= end || end > duration) throw new Error('کاتی دەستپێک و کۆتایی بپشکنە.');
-    }
-    await native.download({ url: currentUrl, start, end, format: $('format').value, quality: $('quality').value });
+    const range = selectedRange();
+    await native.download({ url: currentUrl, ...range, format: $('format').value, quality: $('quality').value });
     taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندن دەستی پێکرد...'; $('progress').value = 0; status.scrollIntoView({behavior: 'smooth', block: 'center'}); updateStatus();
   } catch (err) { showError(err.message); }
 });
@@ -100,7 +103,8 @@ $('subtitle').addEventListener('click', async () => {
   if (!$('languages').value) return;
   error.hidden = true;
   try {
-    await native.subtitles({ url: currentUrl, language: $('languages').value, format: $('subformat').value });
+    const range = selectedRange();
+    await native.subtitles({ url: currentUrl, ...range, language: $('languages').value, format: $('subformat').value });
     taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندنی ژێرنووس...'; $('progress').value = 0; updateStatus();
   } catch (err) { showError(err.message); }
 });
