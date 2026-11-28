@@ -31,8 +31,8 @@ jobs=${BUILD_JOBS:-4}
 )
 (
   cd "$work/src/x264"
-  ./configure --host=aarch64-linux-android --cross-prefix="$toolchain/bin/llvm-" \
-    --cc=aarch64-linux-android29-clang --sysroot="$toolchain/sysroot" \
+  CC=aarch64-linux-android29-clang ./configure --host=aarch64-linux-android --cross-prefix="$toolchain/bin/llvm-" \
+    --sysroot="$toolchain/sysroot" \
     --prefix="$prefix" --enable-static --enable-pic --disable-cli --disable-opencl
   make -j"$jobs"
   make install
