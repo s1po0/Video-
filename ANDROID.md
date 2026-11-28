@@ -28,3 +28,5 @@ MP4 clips use a separate FFmpeg 9 executable, built from pinned FFmpeg, OpenSSL 
 Subtitle discovery requests manual and automatic tracks, including available translations. If none are found, it tries an alternate YouTube client and, at most once per day, updates yt-dlp and retries. This extra lookup can make metadata loading slower when subtitles are missing. A caption reported in the YouTube player may still be unavailable to yt-dlp due to YouTube restrictions. Subtitle downloads use the same client that found the tracks, and selected clips still trim and rebase cue times.
 
 The app stages downloads in its cache and copies the finished file to the chosen folder; during saving, both copies can briefly occupy storage. Failed requests or retries can use extra network data.
+
+If an MP4 clip contains a track substantially shorter than requested, the app retries once with the version 16 range settings after removing the first attempt. If still short, the message identifies the track and its reported and requested durations. A retry can consume extra data. The duration check relies on Android MediaExtractor metadata and may not identify the underlying cause.

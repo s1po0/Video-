@@ -140,7 +140,7 @@ public class DownloadService extends Service {
         stopSelf();
     }
 
-    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate, boolean parallel, boolean bounded) {
+    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate, boolean parallel, ClipDownload.Mode mode) {
         String link = intent.getStringExtra("url"), kind = intent.getStringExtra("kind"), format = intent.getStringExtra("format");
         YoutubeDLRequest r = new YoutubeDLRequest(link);
         r.addOption("--no-playlist"); r.addOption("--no-warnings");
@@ -159,12 +159,12 @@ public class DownloadService extends Service {
             int start = intent.getIntExtra("start", 0), end = intent.getIntExtra("end", 0);
             if (end > 0) {
                 r.addOption("--download-sections", "*" + start + "-" + end);
-                if (bounded && ClipDownload.useBoundedRequests(kind, format, end)) {
+                if (mode != ClipDownload.Mode.LEGACY && ClipDownload.useBoundedRequests(kind, format, end)) {
                     File clipFfmpeg = new File(getApplicationInfo().nativeLibraryDir, "libffmpeg_slice.so");
                     if (!clipFfmpeg.isFile()) throw new IllegalStateException("ئامێری دابەزاندنی بەش لە ئەپەکەدا نەدۆزرایەوە.");
                     // The wrapper adds its own ffmpeg location; custom commands follow it.
                     r.addCommands(Arrays.asList("--ffmpeg-location", clipFfmpeg.getAbsolutePath()));
-                    r.addOption("--downloader-args", ClipDownload.INPUT_ARGS);
+                    r.addOption("--downloader-args", mode == ClipDownload.Mode.PREVIOUS ? ClipDownload.PREVIOUS_INPUT_ARGS : ClipDownload.INPUT_ARGS);
                 }
                 // MP4 stream copy keeps the original encoding; edit-list support varies by player.
                 if (!ClipDownload.useBoundedRequests(kind, format, end)) r.addOption("--force-keyframes-at-cuts");
@@ -191,12 +191,19 @@ public class DownloadService extends Service {
     }
 
     private void executeWithFallback(Intent intent, File dir, boolean alternate, boolean parallel, boolean bounded, String kind, int clipDuration) throws Exception {
-        ClipDownload.run(bounded, useBounded ->
+        ClipDownload.run(bounded, mode ->
             DownloadSpeed.run(parallel,
-                fast -> executeRequest(buildRequest(intent, dir, alternate, fast, useBounded), intent, kind, clipDuration, useBounded),
+                fast -> {
+                    executeRequest(buildRequest(intent, dir, alternate, fast, mode), intent, kind, clipDuration, mode != ClipDownload.Mode.LEGACY);
+                    if (ClipDownload.useBoundedRequests(kind, intent.getStringExtra("format"), intent.getIntExtra("end", 0))) {
+                        File output = new File(dir, "download.mp4");
+                        if (!output.isFile()) throw new Exception("فایلی تەواوی ڤیدیۆکە دروست نەبوو.");
+                        validateMp4(output, clipDuration);
+                    }
+                },
                 () -> state("running", "دابەزاندن بە ڕێگای ئاسایی دووبارە دەست پێ دەکات...", -1),
                 () -> clearJobFiles(dir)),
-            () -> state("running", "ڕێگای خێرا کارینەکرد؛ بە ڕێگای ئاسایی هەوڵ دەدرێتەوە...", -1),
+            () -> state("running", "فایلەکە تەواو نەبوو یان ڕێگاکە کارینەکرد؛ ڕێگایەکی تر تاقی دەکرێتەوە...", -1),
             () -> clearJobFiles(dir));
     }
 
@@ -226,7 +233,8 @@ public class DownloadService extends Service {
 
     private void validateMp4(File file, int clipDuration) throws Exception {
         MediaExtractor extractor = new MediaExtractor();
-        boolean video = false, audio = false, shortTrack = false;
+        boolean video = false, audio = false;
+        ClipDownload.IncompleteClipException incomplete = null;
         try {
             extractor.setDataSource(file.getAbsolutePath());
             for (int i = 0; i < extractor.getTrackCount(); i++) {
@@ -235,11 +243,14 @@ public class DownloadService extends Service {
                 if ("video/avc".equals(mime)) video = true;
                 if ("audio/mp4a-latm".equals(mime)) audio = true;
                 if (("video/avc".equals(mime) || "audio/mp4a-latm".equals(mime)) && track.containsKey(MediaFormat.KEY_DURATION)) {
-                    shortTrack |= ClipDownload.durationTooShort(track.getLong(MediaFormat.KEY_DURATION), clipDuration);
+                    long actualUs = track.getLong(MediaFormat.KEY_DURATION);
+                    if (incomplete == null && ClipDownload.durationTooShort(actualUs, clipDuration)) {
+                        incomplete = new ClipDownload.IncompleteClipException("video/avc".equals(mime) ? "وێنە" : "دەنگ", actualUs, clipDuration);
+                    }
                 }
             }
         } finally { extractor.release(); }
-        if (shortTrack) throw new Exception("فایلەکە تەواو دابەنەزیوە؛ تکایە دووبارە هەوڵ بدەوە.");
+        if (incomplete != null) throw incomplete;
         if (!video || !audio) throw new Exception("فایلی MP4 وێنە و دەنگی سازگاری تێدا نەدۆزرایەوە. تکایە کوالێتییەکی تر تاقی بکەرەوە.");
     }
 

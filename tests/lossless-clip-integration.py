@@ -15,7 +15,8 @@ import threading
 ffmpeg = os.environ.get('FFMPEG', 'ffmpeg')
 # Use the production request settings so a regression in the app fails this test.
 java = (Path(__file__).resolve().parents[1] / 'android/app/src/main/java/com/slicevid/app/ClipDownload.java').read_text()
-input_args = re.search(r'INPUT_ARGS\s*=\s*"([^"]+)"', java).group(1)
+input_args = re.search(r'\bINPUT_ARGS\s*=\s*"([^"]+)"', java).group(1)
+previous_args = re.search(r'\bPREVIOUS_INPUT_ARGS\s*=\s*"([^"]+)"', java).group(1)
 with tempfile.TemporaryDirectory() as temporary:
     root = Path(temporary)
     source = root / 'source.mp4'
@@ -141,7 +142,7 @@ with tempfile.TemporaryDirectory() as temporary:
         # requested bytes, an upper bound, not measured mobile data consumption.
         server.ranges = []
         old = cmd.copy()
-        old[old.index(input_args)] = 'ffmpeg_i:-request_size 8388608 -short_seek_size 8388608 -multiple_requests 1'
+        old[old.index(input_args)] = previous_args
         old[old.index('-o') + 1] = str(root / 'old.%(ext)s')
         previous = subprocess.run(old, capture_output=True, text=True, timeout=90)
         assert previous.returncode == 0, previous.stderr
