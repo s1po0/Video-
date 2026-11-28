@@ -4,6 +4,21 @@ const native = window.Capacitor?.Plugins?.DeviceDownloader;
 let currentUrl = '', duration = 0, clipMode = false, loading = false, taskState = 'idle', lastState = 'idle';
 const error = $('error'), status = $('status'), statusText = $('status-text');
 
+function showScreen(name) {
+  for (const screen of ['link', 'edit', 'subs', 'files']) {
+    $('screen-' + screen).hidden = screen !== name;
+    const button = document.querySelector('[data-screen="' + screen + '"]');
+    if (screen === name) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  }
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  if (name === 'files') refreshDownloads();
+}
+document.querySelectorAll('[data-screen]').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.screen)));
+document.querySelectorAll('.go-link').forEach(button => button.addEventListener('click', () => showScreen('link')));
+$('edit-range').addEventListener('click', () => showScreen('edit'));
+
 function showError(message) { error.textContent = message || 'هەڵەیەک ڕوویدا؛ دووبارە هەوڵ بدەوە.'; error.hidden = false; error.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 function buttons() {
   const busy = loading || taskState === 'queued' || taskState === 'running';
@@ -24,11 +39,16 @@ function renderClip() {
   $('start-label').textContent = time(start); $('end-label').textContent = time(end);
   $('clip-length').textContent = time(end - start);
   $('start').value = time(start); $('end').value = time(end);
+  updateRangeSummary();
+}
+function updateRangeSummary() {
+  $('subtitle-range').textContent = clipMode ? time(Number($('start-range').value)) + ' - ' + time(Number($('end-range').value)) : 'هەموو ڤیدیۆکە';
 }
 function mode(clip) {
   clipMode = clip; $('clip-controls').hidden = !clip;
   $('full-mode').classList.toggle('active', !clip); $('clip-mode').classList.toggle('active', clip);
   $('full-mode').setAttribute('aria-pressed', String(!clip)); $('clip-mode').setAttribute('aria-pressed', String(clip));
+  updateRangeSummary();
 }
 $('full-mode').onclick = () => mode(false);
 $('clip-mode').onclick = () => mode(true);
@@ -84,7 +104,8 @@ $('choose-folder').onclick = async () => { try { const folder = await native.cho
 $('form').addEventListener('submit', async (e) => {
   e.preventDefault(); if (!native) return;
   const url = $('url').value.trim(); error.hidden = true; $('details').hidden = true;
-  loading = true; buttons(); status.hidden = false; $('background-hint').hidden = true; statusText.textContent = 'ئامادەکردنی ڤیدیۆ... تکایە چاوەڕێ بکە.'; $('progress').removeAttribute('value');
+  $('subtitle-details').hidden = true; $('editor-empty').hidden = false; $('subs-empty').hidden = false; currentUrl = '';
+  loading = true; buttons(); status.hidden = false; status.classList.remove('failed'); $('background-hint').hidden = true; statusText.textContent = 'ئامادەکردنی ڤیدیۆ... تکایە چاوەڕێ بکە.'; $('progress').removeAttribute('value');
   try {
     const video = await native.info({ url });
     currentUrl = url; duration = Math.floor(video.duration || 0);
@@ -95,7 +116,7 @@ $('form').addEventListener('submit', async (e) => {
     for (const id of ['start-range', 'end-range']) { $(id).max = duration; $(id).disabled = duration < 1; }
     $('clip-mode').disabled = duration < 1;
     $('start-range').value = 0; $('end-range').value = Math.min(30, duration); renderClip(); mode(false);
-    $('details').hidden = false; status.hidden = true;
+    $('details').hidden = false; $('subtitle-details').hidden = false; $('editor-empty').hidden = true; $('subs-empty').hidden = true; status.hidden = true; showScreen('edit');
   } catch (err) { status.hidden = true; showError(err.message); }
   finally { loading = false; buttons(); }
 });
