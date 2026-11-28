@@ -27,18 +27,22 @@ for (const width of [320, 390, 600]) {
   });
   await page.goto(`http://127.0.0.1:${port}/native.html`);
   await page.screenshot({path:`tmp/screenshots/link-${width}.png`,fullPage:true});
+  await page.click('[data-screen=subs]'); assert.equal(await page.locator('#subs-empty').isVisible(),true);
   await page.click('[data-screen=edit]'); assert.equal(await page.locator('#editor-empty').isVisible(),true);
   await page.click('.go-link >> nth=0');
   await page.fill('#url','https://youtu.be/abcdefghijk'); await page.click('#load');
   await page.waitForSelector('#details:not([hidden])');
   assert.equal(await page.locator('#screen-edit').isVisible(),true);
-  await page.click('#clip-mode');
+  await page.click('#clip-mode'); await page.click('#full-mode'); assert.equal(await page.locator('#clip-controls').isVisible(),false); await page.click('#clip-mode');
   await page.locator('#start-range').fill('10'); await page.locator('#end-range').fill('90');
+  await page.locator('.advanced-time summary').click(); await page.locator('#start').fill('00:10'); await page.locator('#start').dispatchEvent('change'); await page.locator('#end').fill('01:30'); await page.locator('#end').dispatchEvent('change');
+  await page.selectOption('#format','webm'); await page.selectOption('#format','mp4'); await page.selectOption('#quality','1080'); await page.selectOption('#quality','720');
   await page.click('#download');
   await page.waitForFunction(()=>window.calls.some(x=>x[0]==='video'));
   let req=await page.evaluate(()=>window.calls.find(x=>x[0]==='video')[1]); assert.equal(req.start,10); assert.equal(req.end,90);
   await page.click('[data-screen=subs]');
   assert.match(await page.locator('#subtitle-range').innerText(),/00:10.*01:30/);
+  await page.selectOption('#languages','ku'); await page.selectOption('#languages','en'); await page.selectOption('#subformat','vtt'); await page.selectOption('#subformat','srt');
   await page.click('#subtitle'); await page.waitForFunction(()=>window.calls.some(x=>x[0]==='subs'));
   req=await page.evaluate(()=>window.calls.find(x=>x[0]==='subs')[1]); assert.equal(req.start,10);assert.equal(req.end,90);
   await page.click('#edit-range'); assert.equal(await page.locator('#screen-edit').isVisible(),true);
@@ -53,6 +57,8 @@ for (const width of [320, 390, 600]) {
     assert.ok(metrics.scroll <= metrics.view, `${screen} at ${width} overflow ${JSON.stringify(metrics)}`);
     assert.equal(await page.locator(`[data-screen=${screen}]`).getAttribute('aria-current'),'page');
   }
+  assert.equal(await page.locator('.foot a').count(),2);
+  await page.locator('[data-screen=link]').focus(); await page.keyboard.press('Enter'); assert.equal(await page.locator('#screen-link').isVisible(),true);
   assert.deepEqual(errors,[]); console.log(`width ${width}: navigation, clip/subtitle range, download, folder, files and overflow passed`); await page.close();
 }
 await browser.close();
