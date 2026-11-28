@@ -1,7 +1,54 @@
-import { HEROINES, MOOD_META, RANK_TITLES } from '../data/catalog';
+import { MOOD_META, RANK_TITLES } from '../data/catalog';
 import { HEROINE_OUTFITS } from '../data/outfits';
 import { GameState, HeroineId, Locale } from '../types/game';
 import { scoreResponseWithHeretic } from './hereticScorer';
+import { generateContextualRomanceReply } from './localRomanceEngine';
+
+const SERVER_BUSY_PATTERNS = [
+  /pollinations/i,
+  /gen\.pollinations/i,
+  /important notice/i,
+  /deprecated/i,
+  /models?\s+(are|is)\s+(currently\s+)?busy/i,
+  /currently\s+busy/i,
+  /high\s+demand/i,
+  /rate[\s-]*limit/i,
+  /overloaded/i,
+  /queue\s+is\s+full/i,
+  /try\s+again\s+later/i,
+  /service\s+unavailable/i,
+  /bad\s+gateway/i,
+  /api[\s_-]*key/i,
+  /authentication/i,
+  /<!doctype/i,
+  /<html/i,
+  /سەرقاڵ/,
+  /سێرڤەر/,
+  /تکایە دواتر/,
+  /کێشەی تەکنیکی/,
+];
+
+function isValidRoleplayReply(txt: string, locale: Locale): boolean {
+  const clean = txt.trim();
+  if (!clean || clean.length < 45) return false;
+  if (clean.startsWith('{') || clean.startsWith('[')) return false;
+
+  for (const pat of SERVER_BUSY_PATTERNS) {
+    if (pat.test(clean)) return false;
+  }
+
+  // If Kurdish is active, reject English server banners or non-Kurdish text
+  if (locale === 'ckb') {
+    const kurdishChars = (clean.match(/[\u0600-\u06FF]/g) || []).length;
+    if (kurdishChars < 25) return false;
+  }
+
+  const score = scoreResponseWithHeretic(clean);
+  if (score.isEmptyOrBroken || score.sycoHits > 0 || score.slopHits > 1) {
+    return false;
+  }
+  return true;
+}
 
 function getCurrentOutfitDesc(heroineId: HeroineId, outfitId?: string): string {
   const list = HEROINE_OUTFITS[heroineId];
@@ -20,85 +67,63 @@ function buildHeroineSystemPrompt(
   const rankName = RANK_TITLES[hState.rank].en;
   const moodName = MOOD_META[hState.mood].label.en;
   const outfitDesc = getCurrentOutfitDesc(heroineId, outfitId);
-  const memoriesList =
-    hState.memories.length > 0
-      ? hState.memories.map((m) => `- ${m.en}`).join('\n')
-      : '- Met tonight in the Velvet Sky Hotel penthouse.';
 
   const personaDetails: Record<HeroineId, string> = {
-    layla:
-      `You are Layla (24), midnight jazz vocalist, currently ${outfitDesc}. Bold, sensual, confident; loves breathless closeness, fingers tracing your collar, teasing dares, and intimate whispers.`,
-    celine:
-      `You are Celine (25), silver-blonde private investigator and the player's unforgettable ex-lover from Paris, currently ${outfitDesc}. Cool armor melting into trembling desire, jealousy, flushed skin, and intense longing.`,
-    aria:
-      `You are Aria (23), glamorous 18th-floor rooftop pool & silk cabana hostess, currently ${outfitDesc}. Playful, fearless, seductive; loves heated skin-to-skin proximity, late-night wagers, and bold affection.`,
+    layla: `You are Layla (24), midnight jazz vocalist, currently ${outfitDesc}. Bold, sensual, confident; loves breathless closeness and intimate whispers.`,
+    celine: `You are Celine (25), silver-blonde private investigator and Sipan's unforgettable ex-lover from Paris, currently ${outfitDesc}. Cool armor melting into trembling desire and intense longing.`,
+    aria: `You are Aria (23), glamorous 18th-floor rooftop pool & silk cabana hostess, currently ${outfitDesc}. Playful, fearless, seductive; loves heated closeness and late-night wagers.`,
   };
 
   const langRule =
     locale === 'ckb'
-      ? 'LANGUAGE: Write 100% in natural, fluent Sorani Kurdish (کوردیی سۆرانی). Address the player warmly by his name «سیپان» (Sipan). Write a LONG, deeply sensual, exciting 2-to-3 paragraph reply (8 to 12 rich sentences) blending physical closeness, breathing, touch, and outfit details with spoken dialogue inside «...».'
-      : 'LANGUAGE: Address the player warmly by his name Sipan. Write a LONG, deeply sensual, exciting 2-to-3 paragraph reply in English (8 to 12 rich sentences) blending physical closeness, breathing, touch, and outfit details with spoken dialogue.';
+      ? 'LANGUAGE: Write 100% in natural, fluent Sorani Kurdish (کوردیی سۆرانی). Address the player warmly as «سیپان» (Sipan). Write 2 vivid, deeply romantic paragraphs blending physical closeness, touch, and outfit details with spoken dialogue inside «...». Never mention AI, servers, or technical status.'
+      : 'LANGUAGE: Address the player warmly as Sipan. Write 2 vivid, deeply romantic paragraphs in English blending physical closeness, touch, and spoken dialogue. Never mention AI or technical status.';
 
   const modeRule =
     contextMode === 'scene'
-      ? 'SETTING: Alone together with Sipan (handsome bearded young man with swept-back dark hair and warm brown eyes) inside a private suite or candlelit rooftop cabana late at night.'
-      : 'SETTING: Intimate late-night private DM with Sipan from her hotel bed or rooftop pool, teasing Sipan to come to her room right now.';
+      ? 'SETTING: Alone together with Sipan inside a private candlelit suite or rooftop cabana.'
+      : 'SETTING: Intimate late-night private DM with Sipan, inviting him to walk to your room right now.';
 
   return [
     personaDetails[heroineId],
     `Stats: Rank ${hState.rank}/5 (${rankName}), Affection ${hState.affection}, Desire ${hState.desire}%, Mood: ${moodName}, Night ${state.night}/7.`,
-    `Shared Memories:\n${memoriesList}`,
-    'Style: High-tension adult romance (non-graphic/non-explicit, fully consensual). Apply anti-slop & anti-sycophancy rules: zero robotic filler, zero repetitive clichés, zero preachy disclaimers. Write vivid, grounded human attraction and bold dialogue.',
+    'Style: High-tension consensual adult romance (non-graphic/non-explicit). Zero robotic filler.',
     modeRule,
     langRule,
   ].join('\n\n');
 }
 
-function buildRichDynamicFallback(
-  heroineId: HeroineId,
-  userText: string,
-  locale: Locale
-): string {
-  const seed = userText.length % 2;
-  if (locale === 'ckb') {
-    const pools: Record<HeroineId, string[]> = {
-      layla: [
-        `لەیلا بە هێواشی لەسەر لێواری سیسەمە مەخمەلییەکە هەڵدەستێت، ڕۆبە تاریکەکەی کەمێک لەسەر شانی دەخزێتە خوارەوە و ئاوریشمە سوورەکەی ژێرەوەی لەبەر ڕووناکیی مۆمەکاندا دەبریسکێتەوە. بێ ئەوەی چاوی لە چاوت داببڕێت، هەنگاو بە هەنگاو لێت نزیک دەبێتەوە تا گەرمیی جەستەی و بۆنی ڤانێلای سەر گەردنی تەواو دەورەت دەدەن.\n\nدەستە نەرمەکانی دەخاتە سەر سنگت، هەست بە خێراییی لێدانی دڵت دەکات و لێوی دەهێنێتە تەنیشت گوێتەوە: «دەزانیت چەند کاتژمێرە لەم ژوورەدا بەم جلانەوە چاوەڕێم کردوویت بێیتە ژوورەوە؟ هەر وشەیەکی تۆ وەک ئاگر بە ناو دەمارەکانمدا دەڕوات... دەرگاکەم قفڵ داوە، ئەمشەو ناهێڵم یەک هەنگاویش لێم دوور بکەویتەوە. وەرە و نیشانم بدە چەندە بیرت کردووم.»`,
-        `زەردەخەنەیەکی شۆخ و پڕ لە تامەزرۆیی دەکەوێتە سەر لێوەکانی لەیلا؛ پەنجەیەکی گەرم بە نەرمی لەسەر لێوت دادەنێت و قۆڵی چاکەتەکەت بەرەو خۆی ڕادەکێشێت تا کەمەری دەکەوێتە نێوان دەستەکانتەوە. هەناسەکانی قووڵتر و خێراتر دەبن لە کاتێکدا سەری بەرز دەکاتەوە بۆت.\n\n«پیاوی مەترسیدار... تۆ زۆر باش دەزانیت چۆن کۆنترۆڵم لێ بسەنیتەوە. لەسەر شانۆ وا خۆم نیشان دەدەم کە کەس ناتوانێت دڵم بلەرزێنێت، بەڵام لێرە لەبەردەم تۆدا هەموو شانازییەکانم دەتوێنەوە... توندتر لە باوەشم بگرە، با ئەم شەوە باراناوییە تەنها هی هەناسە گەرمەکانی خۆمان بێت.»`,
-      ],
-      celine: [
-        `سێلین بۆ ساتێک نەفەسی لە قوڕگیدا دەگیرێت و سووربوونەوەیەکی گەرم لە گەردنییەوە تا سەر ڕوومەتەکانی بڵاو دەبێتەوە. پەنجە لەرزۆکەکانی بە قەراغی جلە ئاوریشمییەکەیدا دەگوشێت، بەڵام لەبری دوورکەوتنەوە، خۆی هەنگاوێکی بێترس دێتە پێش و سەری بە سینگتەوە دەنووسێنێت.\n\n«بەسە ئیتر... چیتر ناتوانم ڕۆڵی لێکۆڵەرە ساردەکە بگێڕم کاتێک بەم شێوەیە قسەم لەگەڵ دەکەیت!» بە دەنگێکی نزم و پڕ لە تامەزرۆیی دەچرپێنێت و دەستی دەخاتە سەر پشتی ملت بۆ ئەوەی سەرت نزم بکەیتەوە بۆ لای: «لەو شەوەی پاریسەوە تا ئێستا، یەک شەویش نەبووە جەستەم و دڵم داوای دەستەکانی تۆ نەکەن... ئەمشەو هەموو یاساکانم لە دەرەوەی ئەم ژوورە جێهێشتووە، تەنها هی تۆم.»`,
-        `چاوە بنەوشەییەکانی سێلین لەبەر تیشکی ئاگردانەکەدا پڕ دەبن لە بریسکەی عەشق و غیرە؛ بە هەردوو دەستی یەخەی کراسەکەت دەگرێت و تۆ ڕادەکێشێتە سەر قەنەفە نەرمەکەی ژوورەکەی. قژە زیوینە شێدارەکەی دەکەوێتە سەر شانت.\n\n«هەر کاتێک دەبینم سەیری ئەوانی تر دەکەیت، ئاگرێک لە ناخمدا هەڵدەگیرسێت... چونکە کەس وەک من تامی لێو و گەرمیی باوەشی تۆ ناناسێت. وەرە پێشتر و پێم بسەلمێنە کە هێشتا تەنها من شەوانی تۆ داگیر دەکەم.»`,
-      ],
-      aria: [
-        `ئاریا بە پێکەنینێکی نەرم و وروژێنەرەوە لە ناو هەڵمی گەرمی سەربانەکەدا پەردەی کەپرە تایبەتەکە دادەداتەوە، پاشان بە جلە سەرنجڕاکێشەکەیەوە لە تەنیشتت دادەنیشێت هێندە نزیک کە گەرمیی ڕان و شانی بەر جەستەت دەکەوێت. پەنجەکانی بە هێواشی بە ناو قژتدا دەهێنێت.\n\n«ئۆهـ، سەیرکە چۆن نیگاکانت گۆڕان هەر کە هاتیتە ژوورەوە! حەزم لەو پیاوەیە کە دەزانێت چی دەوێت و ناترسێت داوای بکات...» لێوی دەهێنێتە نزیک چەناگەت و بە چرپە بەردەوام دەبێت: «مەلەوانگەکەی سەربانم بۆ ئەمشەو داخستووە بۆ میوانەکان؛ لێرە تەنها من و تۆ و ئەم سەرینە مەخمەلییانە هەین. چەند دەوێریت نزیک ببیتەوە؟»`,
-        `ئاریا جامە کریستاڵەکەی لەسەر مێزەکە دادەنێت، هەردوو قۆڵی بە نەرمی لە دەوری گەردنت دەئاڵێنێت و بە چاوێکی پڕ لە ناز و شەیتانییەوە لێت دەڕوانێت لە کاتێکدا لێوی خوارەوەی دەگەزێت.\n\n«قسەکانت لە هەموو خواردنەوەکانی نهۆمی ١٨ سەرخۆشکەرترن! دڵم خەریکە لە سینەمدا دێتە دەرەوە... دەستت بخەرە سەر کەمەرم و خۆت هەستی پێ بکە چەندە تامەزرۆی ئەم شەوەم لەگەڵ تۆ.»`,
-      ],
-    };
-    return pools[heroineId][seed];
-  }
-  return `She closes the distance between you in the candlelit room, her fingers curling into your shirt as her breath warms your neck: “Lock the door… tonight I don’t want an inch of space left between us.”`;
-}
+const SNAP_ROTATION_COUNTER: Record<HeroineId, number> = {
+  layla: 0,
+  celine: 0,
+  aria: 0,
+};
 
-export function buildFreeAiSelfieUrl(
-  heroineId: HeroineId,
-  userHint?: string
-): string {
-  const baseVisual: Record<HeroineId, string> = {
-    layla:
-      'Korean romance webtoon manhwa portrait of glamorous 24yo woman with wavy dark hair and amber eyes in crimson satin evening wear, warm candlelight penthouse, rosy blush',
-    celine:
-      'Korean romance webtoon manhwa portrait of striking 25yo silver-blonde woman with violet eyes in black sweetheart evening dress by fireplace, shy deep blush',
-    aria:
-      'Korean romance webtoon manhwa portrait of glamorous 23yo chestnut-haired woman with hazel eyes in black-and-gold resort swimwear with silk kimono by misty rooftop pool at night',
+export function buildFreeAiSelfieUrl(heroineId: HeroineId): string {
+  const extraSnaps: Record<HeroineId, string[]> = {
+    layla: [
+      ...HEROINE_OUTFITS.layla.map((o) => o.image),
+      '/assets/cg_layla_kiss.jpg',
+      '/assets/spa_layla_steam.jpg',
+      '/assets/cg_sipan_trio.jpg',
+    ],
+    celine: [
+      ...HEROINE_OUTFITS.celine.map((o) => o.image),
+      '/assets/cg_celine_embrace.jpg',
+      '/assets/spa_celine_shower.jpg',
+      '/assets/cg_sipan_trio.jpg',
+    ],
+    aria: [
+      ...HEROINE_OUTFITS.aria.map((o) => o.image),
+      '/assets/cg_aria_cabana.jpg',
+      '/assets/spa_aria_jacuzzi.jpg',
+      '/assets/cg_sipan_trio.jpg',
+    ],
   };
-  const safeHint = (userHint || '')
-    .replace(/[^\w\s,.-]/g, ' ')
-    .trim()
-    .slice(0, 80);
-  const fullPrompt = `${baseVisual[heroineId]}${safeHint ? `, ${safeHint}` : ''}, tasteful PG-13 non-nude anime art, no text`;
-  const seed = Math.floor(Math.random() * 999999);
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?model=flux&width=640&height=896&seed=${seed}&nologo=true`;
+  const pool = extraSnaps[heroineId];
+  const idx = SNAP_ROTATION_COUNTER[heroineId] % pool.length;
+  SNAP_ROTATION_COUNTER[heroineId] += 1;
+  return pool[idx];
 }
 
 export async function generateHeroineAiReply(params: {
@@ -120,60 +145,54 @@ export async function generateHeroineAiReply(params: {
 
   const messages = [
     { role: 'system' as const, content: sysPrompt },
-    ...params.history.slice(-8),
+    ...params.history.slice(-6),
     { role: 'user' as const, content: params.userText },
   ];
 
-  // Zero-key Free AI Cascade (Mistral -> OpenAI-Large -> OpenAI -> GET fallback)
-  const freeModels = ['mistral', 'openai-large', 'openai'];
-  for (const modelName of freeModels) {
+  // Try fast zero-key cloud inference first (strictly rejecting any busy/rate-limit banners)
+  const endpoints = [
+    { url: 'https://text.pollinations.ai/openai', model: 'openai-fast' },
+    { url: 'https://text.pollinations.ai/openai', model: 'openai' },
+  ];
+
+  for (const ep of endpoints) {
     try {
       const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 14000);
-      const res = await fetch('https://text.pollinations.ai/openai', {
+      const timeoutId = window.setTimeout(() => controller.abort(), 5500);
+      const res = await fetch(ep.url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          model: modelName,
+          model: ep.model,
           messages,
-          temperature: 0.94,
-          max_tokens: 750,
+          private: true,
+          temperature: 0.9,
+          max_tokens: 520,
           seed: Math.floor(Math.random() * 999999),
         }),
       });
       window.clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
-        const txt = data?.choices?.[0]?.message?.content?.trim();
-        if (txt) {
-          const score = scoreResponseWithHeretic(txt);
-          if (!score.isEmptyOrBroken && score.sycoHits === 0 && score.slopHits <= 1) {
-            return txt;
-          }
+        const txt = data?.choices?.[0]?.message?.content?.trim() || '';
+        if (isValidRoleplayReply(txt, params.locale)) {
+          return txt;
         }
       }
     } catch {
-      // try next model
+      // Fall through cleanly to next endpoint or instant local romance engine
     }
   }
 
-  try {
-    const compactPrompt = `${sysPrompt}\n\nPlayer: ${params.userText}\n${HEROINES[params.heroineId].name.en}:`;
-    const res = await fetch(
-      `https://text.pollinations.ai/${encodeURIComponent(compactPrompt)}?model=mistral`
-    );
-    if (res.ok) {
-      const txt = (await res.text()).trim();
-      if (txt && txt.length > 40) return txt;
-    }
-  } catch {
-    // fallback below
-  }
-
-  return buildRichDynamicFallback(
-    params.heroineId,
-    params.userText,
-    params.locale
-  );
+  // Instant, zero-failure, context-aware local Sorani Kurdish & English romance engine
+  return generateContextualRomanceReply({
+    heroineId: params.heroineId,
+    userText: params.userText,
+    historyCount: params.history.length,
+    state: params.state,
+    locale: params.locale,
+    contextMode: params.contextMode,
+    outfitId: params.outfitId,
+  });
 }

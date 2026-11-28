@@ -36,8 +36,8 @@ import { HeartbeatMinigame, MixologyMinigame } from './components/MiniGames';
 import { PhoneOverlay } from './components/PhoneOverlay';
 import {
   getEquippedOutfitImage,
-  HotelTowerMap,
 } from './components/HotelTowerMap';
+import { FreeRoamWorld } from './components/FreeRoamWorld';
 import { WardrobeModal } from './components/WardrobeModal';
 import { HEROINE_OUTFITS, SIPAN_OUTFITS } from './data/outfits';
 import { TowerHotspot } from './data/towerMap';
@@ -1163,8 +1163,8 @@ export const App: React.FC = () => {
           <div className="hub-overlay" />
           <AtmosphereCanvas mode="rain_storm" intensity={0.75} />
 
-          {/* Top RPG Status HUD */}
-          <header className="hub-header">
+          {/* Sleek Compact Estella-Style RPG HUD */}
+          <header className="hub-header compact-v26">
             <div className="hub-calendar-row">
               <button
                 type="button"
@@ -1181,18 +1181,43 @@ export const App: React.FC = () => {
                 <span>{locale === 'ckb' ? 'سیپان' : 'Sipan'}</span>
               </button>
 
-              <div className="night-badge">
-                <Moon size={15} />
+              <div className="night-badge compact">
+                <span>{PHASE_NAMES[state.phase].icon}</span>
                 <strong>
                   {locale === 'ckb'
-                    ? `شەوی ${state.night} لە ٧`
-                    : `Night ${state.night} / 7`}
+                    ? `شەوی ${state.night}/7`
+                    : `Night ${state.night}/7`}
                 </strong>
-                <span className="phase-tag">
-                  {PHASE_NAMES[state.phase].icon}{' '}
-                  {loc(PHASE_NAMES[state.phase].name, locale)}
-                </span>
               </div>
+
+              <span className="res-pill energy">⚡ {state.energy}/3</span>
+              <span className="res-pill cash">💵 ${state.cash}</span>
+
+              {state.energy === 0 && (
+                <button
+                  type="button"
+                  className="rest-quick-pill"
+                  onClick={handleRestOrFinale}
+                >
+                  🛌 {locale === 'ckb' ? 'شەوی نوێ' : 'Rest'}
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="map-toggle-pill"
+                onClick={() =>
+                  setHubViewMode((m) => (m === 'tower' ? 'cards' : 'tower'))
+                }
+              >
+                {hubViewMode === 'tower'
+                  ? locale === 'ckb'
+                    ? '📋 لیست'
+                    : '📋 List'
+                  : locale === 'ckb'
+                  ? '🗺️ جیهانی ئازاد'
+                  : '🗺️ Open World'}
+              </button>
 
               <div className="hub-top-icons">
                 <button
@@ -1202,63 +1227,31 @@ export const App: React.FC = () => {
                   <span className="lang-mini">{locale === 'ckb' ? 'EN' : 'کو'}</span>
                 </button>
                 <button className="hud-icon-btn" onClick={toggleSound}>
-                  {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                  {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
                 </button>
                 <button
                   className="hud-icon-btn"
                   onClick={() => setScreen('title')}
                 >
-                  <Home size={15} />
+                  <Home size={14} />
                 </button>
               </div>
             </div>
-
-            <div className="resources-bar">
-              <span className="res-pill energy">
-                <Zap size={14} />{' '}
-                {locale === 'ckb'
-                  ? `وزە: ${state.energy}/3`
-                  : `Energy: ${state.energy}/3`}
-              </span>
-              <span className="res-pill cash">💵 ${state.cash}</span>
-              <span className="res-pill clues">
-                🔎 {locale === 'ckb' ? 'بەڵگە:' : 'Clues:'} {state.rubyClues}/3
-              </span>
-              <button
-                type="button"
-                className="map-toggle-pill"
-                onClick={() =>
-                  setHubViewMode((m) => (m === 'tower' ? 'cards' : 'tower'))
-                }
-              >
-                🗺️{' '}
-                {hubViewMode === 'tower'
-                  ? locale === 'ckb'
-                    ? 'لیست'
-                    : 'Grid'
-                  : locale === 'ckb'
-                  ? 'نەخشەی تاوەر'
-                  : 'Tower Map'}
-              </button>
-            </div>
           </header>
 
-          {/* Interactive Illustrated 7-Floor Hotel Tower Map OR Cards */}
+          {/* 60fps Open Free-Roam World OR Classic Cards */}
           {hubViewMode === 'tower' ? (
-            <HotelTowerMap
+            <FreeRoamWorld
               state={state}
               locale={locale}
+              sipanOutfit={sipanOutfit}
               equippedOutfits={equippedOutfits}
-              getHeroinesAtLocation={getHeroinesAtLocation}
               hasStoryReady={(hid) => Boolean(getNextAvailableChapter(hid))}
-              onSelectHotspot={(spot) => {
-                setSelectedHotspot(spot);
-                if (spot.mappedLoc === 'boutique') {
-                  setModal('shop');
-                } else {
-                  setSelectedLoc(spot.mappedLoc);
-                }
-              }}
+              onEngageHeroine={handleEngageHeroine}
+              onTriggerSecret={handleInspectRoomSecret}
+              onTriggerSpa={handleInspectSpaScene}
+              onOpenShop={() => setModal('shop')}
+              onStartMixology={() => setShowMixology(true)}
             />
           ) : (
           <main className="hub-locations-grid">
