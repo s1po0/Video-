@@ -17,7 +17,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.server.requests.append(self.path)
-        body = (b'WEBVTT\n\n22:20:06.100 --> 22:20:07.900\nAuto\n\n' if self.path in ('/ar-auto.vtt', '/en-orig.vtt')
+        body = (b'WEBVTT\n\n22:20:06.100 --> 22:20:07.900\nAuto\n\n' if self.path in ('/ar-auto.vtt', '/en-orig.vtt', '/fr.vtt')
                 else b'WEBVTT\n\n00:00:04.000 --> 00:00:06.000\nHello\n\n')
         self.send_response(200)
         self.send_header('Content-Length', str(len(body)))
@@ -64,4 +64,10 @@ with tempfile.TemporaryDirectory() as temporary, Server(('127.0.0.1', 0), Handle
     subprocess.run(base + opts, cwd=root, capture_output=True, text=True, check=True, timeout=30)
     assert server.requests[-1] == '/en-orig.vtt', server.requests
     assert '22:20:06,100' in (root / 'original.en-orig.srt').read_text()
-    print('manual, auto and original tracks selected; long timestamp conversion passed')
+    # A different manual language can cover the clip when the requested track does not.
+    opts = ['--skip-download', '--write-subs', '--write-auto-subs', '--sub-langs', 'fr', '--sub-format', 'vtt/best',
+            '--convert-subs', 'srt', '--ffmpeg-location', os.environ.get('FFMPEG', 'ffmpeg'), '-o', str(root / 'fallback.%(ext)s')]
+    subprocess.run(base + opts, cwd=root, capture_output=True, text=True, check=True, timeout=30)
+    assert server.requests[-1] == '/fr.vtt', server.requests
+    assert '22:20:06,100' in (root / 'fallback.fr.srt').read_text()
+    print('manual, alternate manual, auto and original tracks selected; long timestamp conversion passed')

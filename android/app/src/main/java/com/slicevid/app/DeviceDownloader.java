@@ -83,7 +83,7 @@ public class DeviceDownloader extends Plugin {
                 Iterator<String> keys = tracks.keys();
                 while (keys.hasNext()) {
                     String k = keys.next();
-                    if (k.matches("[A-Za-z0-9_-]{1,35}") && tracks.optJSONArray(k) != null && tracks.optJSONArray(k).length() > 0) langs.add(k);
+                    if (SubtitleDiscovery.isCaptionLanguage(k) && tracks.optJSONArray(k) != null && tracks.optJSONArray(k).length() > 0) langs.add(k);
                 }
             }
         }
@@ -244,7 +244,7 @@ public class DeviceDownloader extends Plugin {
             String quality = call.getString("quality", "best");
             String language = call.getString("language", "");
             String subtitleClient = call.getString("subtitleClient", "default");
-            if (!quality.matches("best|360|480|720|1080") || (subtitles && (!language.matches("[A-Za-z0-9_-]{1,35}") || !subtitleClient.matches("default|web_safari")))) throw new Exception("هەڵبژاردنەکە دروست نییە.");
+            if (!quality.matches("best|360|480|720|1080") || (subtitles && (!SubtitleDiscovery.isCaptionLanguage(language) || !subtitleClient.matches("default|web_safari")))) throw new Exception("هەڵبژاردنەکە دروست نییە.");
             double start = call.getDouble("start", 0.0), end = call.getDouble("end", 0.0);
             if (!Double.isFinite(start) || !Double.isFinite(end) || start < 0 || end < 0 || end > Integer.MAX_VALUE || (end > 0 && end <= start) || (start > 0 && end == 0)) throw new Exception("کاتی دەستپێک و کۆتایی بپشکنە.");
             Intent intent = new Intent(getContext(), DownloadService.class);
@@ -258,7 +258,7 @@ public class DeviceDownloader extends Plugin {
                 String[] languages = new String[alternatives.length()];
                 for (int i = 0; i < languages.length; i++) {
                     languages[i] = alternatives.getString(i);
-                    if (!languages[i].matches("[A-Za-z0-9_-]{1,35}")) throw new Exception("هەڵبژاردنەکە دروست نییە.");
+                    if (!SubtitleDiscovery.isCaptionLanguage(languages[i])) throw new Exception("هەڵبژاردنەکە دروست نییە.");
                 }
                 intent.putExtra(key, languages);
             }

@@ -27,5 +27,8 @@ final class SubtitleDiscovery {
         } catch (Exception ignored) { }
         return new Result<>(initial, false);
     }
+    static boolean isCaptionLanguage(String code) {
+        return code != null && !code.equalsIgnoreCase("live_chat") && code.matches("[A-Za-z0-9][A-Za-z0-9_-]{0,34}") && !code.equalsIgnoreCase("all");
+    }
     private SubtitleDiscovery() { }
 }

@@ -7,6 +7,13 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class SubtitleDiscoveryTest {
+    @Test public void ignoresLiveChatAndSpecialSelections() {
+        assertFalse(SubtitleDiscovery.isCaptionLanguage("live_chat"));
+        assertFalse(SubtitleDiscovery.isCaptionLanguage("all"));
+        assertFalse(SubtitleDiscovery.isCaptionLanguage("-en"));
+        assertTrue(SubtitleDiscovery.isCaptionLanguage("ar"));
+        assertTrue(SubtitleDiscovery.isCaptionLanguage("zh-Hans-orig"));
+    }
     @Test public void availableTracksDoNotCauseExtraLookups() {
         List<String> calls = new ArrayList<>();
         SubtitleDiscovery.Result<String> r = SubtitleDiscovery.find("en", alt -> { calls.add("lookup"); return "ku"; },
