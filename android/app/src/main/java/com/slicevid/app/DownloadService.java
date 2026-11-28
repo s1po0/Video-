@@ -9,6 +9,8 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
 import android.os.Environment;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -92,8 +94,18 @@ public class DownloadService extends Service {
                 else {
                     String quality = intent.getStringExtra("quality");
                     String cap = "best".equals(quality) ? "" : "[height<=" + quality + "]";
-                    r.addOption("-f", "bv*" + cap + "+ba/b" + cap);
-                    r.addOption("--merge-output-format", format); r.addOption("--recode-video", format);
+                    if (format.equals("mp4")) {
+                        // Do not choose AV1/VP9 just because it has an .mp4 container:
+                        // some Android players render only audio for those streams.
+                        // Prefer an actual H.264 video stream and AAC audio, or a
+                        // progressive MP4 containing both. Fail if none exists.
+                        String h264 = "[ext=mp4][vcodec^=avc1]" + cap;
+                        r.addOption("-f", "bv" + h264 + "+ba[ext=m4a][acodec^=mp4a]/b" + h264 + "[acodec^=mp4a]");
+                        r.addOption("--merge-output-format", "mp4");
+                    } else {
+                        r.addOption("-f", "bv" + cap + "+ba/b" + cap);
+                        r.addOption("--merge-output-format", format); r.addOption("--recode-video", format);
+                    }
                 }
             }
             YoutubeDL.getInstance().execute(r, UUID.randomUUID().toString(), (p, eta, line) -> {
@@ -104,7 +116,12 @@ public class DownloadService extends Service {
             state("running", "پاشەکەوتکردنی فایل...", 100);
             File[] outputs = dir.listFiles((d, name) -> name.endsWith("." + format));
             if (outputs == null || outputs.length == 0) throw new Exception("فایلەکە بەردەست نییە یان دروست نەبوو.");
-            publish(outputs[0], format, intent.getStringExtra("folder"));
+            // yt-dlp's final media file has this exact name. Never select an
+            // intermediate audio/video fragment merely because it ends in .mp4.
+            File output = kind.equals("subtitle") ? outputs[0] : new File(dir, "download." + format);
+            if (!output.isFile()) throw new Exception("فایلی تەواوی ڤیدیۆکە دروست نەبوو.");
+            if (format.equals("mp4")) validateMp4(output);
+            publish(output, format, intent.getStringExtra("folder"));
             resultMessage = "تەواو بوو ✓ فایلەکە لە شوێنی هەڵبژێردراو پاشەکەوت کرا.";
         } catch (Exception e) {
             resultState = "error";
@@ -120,6 +137,21 @@ public class DownloadService extends Service {
         stopForeground(STOP_FOREGROUND_REMOVE);
         getSystemService(NotificationManager.class).notify(ID, notification(resultMessage, 100, false));
         stopSelf();
+    }
+
+    private void validateMp4(File file) throws Exception {
+        MediaExtractor extractor = new MediaExtractor();
+        boolean video = false, audio = false;
+        try {
+            extractor.setDataSource(file.getAbsolutePath());
+            for (int i = 0; i < extractor.getTrackCount(); i++) {
+                MediaFormat track = extractor.getTrackFormat(i);
+                String mime = track.getString(MediaFormat.KEY_MIME);
+                if ("video/avc".equals(mime)) video = true;
+                if ("audio/mp4a-latm".equals(mime)) audio = true;
+            }
+        } finally { extractor.release(); }
+        if (!video || !audio) throw new Exception("فایلی MP4 وێنە و دەنگی سازگاری تێدا نەدۆزرایەوە. تکایە کوالێتییەکی تر تاقی بکەرەوە.");
     }
 
     private void publish(File file, String extension, String folder) throws Exception {

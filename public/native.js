@@ -93,7 +93,7 @@ $('download').addEventListener('click', async () => {
       if (start >= end || end > duration) throw new Error('کاتی دەستپێک و کۆتایی بپشکنە.');
     }
     await native.download({ url: currentUrl, start, end, format: $('format').value, quality: $('quality').value });
-    taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندن دەستی پێکرد...'; $('progress').value = 0; updateStatus();
+    taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندن دەستی پێکرد...'; $('progress').value = 0; status.scrollIntoView({behavior: 'smooth', block: 'center'}); updateStatus();
   } catch (err) { showError(err.message); }
 });
 $('subtitle').addEventListener('click', async () => {
