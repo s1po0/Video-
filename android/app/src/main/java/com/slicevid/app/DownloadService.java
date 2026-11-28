@@ -168,7 +168,7 @@ public class DownloadService extends Service {
                 }
                 r.addOption("--force-keyframes-at-cuts");
                 // FFmpeg handles sections; re-encoding keeps cuts aligned with subtitles.
-                r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? " -preset ultrafast" : ""));
+                r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? ClipDownload.mp4OutputArgs(intent.getStringExtra("quality")) : ""));
             }
             if (format.equals("mp3")) { r.addOption("-x"); r.addOption("--audio-format", "mp3"); }
             else {

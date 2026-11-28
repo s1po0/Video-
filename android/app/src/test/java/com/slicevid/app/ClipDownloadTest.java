@@ -17,6 +17,15 @@ public class ClipDownloadTest {
         assertFalse(ClipDownload.useBoundedRequests("video", "mp3", 42));
         assertFalse(ClipDownload.useBoundedRequests("subtitle", "mp4", 42));
     }
+    @Test public void clipBitrateCapsFollowSelectedQuality() {
+        assertTrue(ClipDownload.mp4OutputArgs("360").contains("-maxrate:v 1000k -bufsize:v 2000k"));
+        assertTrue(ClipDownload.mp4OutputArgs("480").contains("-maxrate:v 1600k -bufsize:v 3200k"));
+        assertTrue(ClipDownload.mp4OutputArgs("720").contains("-maxrate:v 2500k -bufsize:v 5000k"));
+        assertTrue(ClipDownload.mp4OutputArgs("1080").contains("-maxrate:v 5000k -bufsize:v 10000k"));
+        assertTrue(ClipDownload.mp4OutputArgs("best").contains("-maxrate:v 8000k -bufsize:v 16000k"));
+        assertTrue(ClipDownload.mp4OutputArgs(null).contains("-maxrate:v 2500k"));
+        assertTrue(ClipDownload.mp4OutputArgs("720").contains("-b:a 128k"));
+    }
     @Test public void truncatedTracksAreRejected() {
         assertTrue(ClipDownload.durationTooShort(50_000_000L, 60));
         assertFalse(ClipDownload.durationTooShort(59_000_000L, 60));
