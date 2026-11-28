@@ -1,51 +1,101 @@
-import React, { useState } from 'react';
-import { X, MessageCircle, Send, Sparkles } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { MessageCircle, Send, Sparkles, X } from 'lucide-react';
 import { HEROINES, loc, MOOD_META } from '../data/catalog';
-import {
-  GameState,
-  HeroineId,
-  Locale,
-  PhoneMessage,
-  PhoneThread,
-} from '../types/game';
+import { GameState, HeroineId, Locale, PhoneThread } from '../types/game';
+import { generateHeroineAiReply } from '../utils/aiRoleplay';
 
-export const PhoneOverlay: React.FC<{
+interface PhoneProps {
   state: GameState;
   availableThreads: PhoneThread[];
   locale: Locale;
-  onReplyThread: (thread: PhoneThread, optionIndex: number) => void;
+  onReplyThread: (thread: PhoneThread, optionIdx: number) => void;
+  onLiveAiExchange: (
+    heroine: HeroineId,
+    userMsg: string,
+    herReply: string
+  ) => void;
   onClose: () => void;
-}> = ({ state, availableThreads, locale, onReplyThread, onClose }) => {
-  const [selectedHeroine, setSelectedHeroine] = useState<HeroineId>(() => {
-    if (availableThreads.length > 0) return availableThreads[0].heroine;
-    return 'layla';
-  });
-  const [zoomPhoto, setZoomPhoto] = useState<string | null>(null);
+}
 
-  const heroineIds: HeroineId[] = ['layla', 'celine', 'aria'];
-  const activeThread = availableThreads.find((th) => th.heroine === selectedHeroine);
-  const pastMessages: PhoneMessage[] = state.activeReplies[selectedHeroine] || [];
-  const hProfile = HEROINES[selectedHeroine];
+export const PhoneOverlay: React.FC<PhoneProps> = ({
+  state,
+  availableThreads,
+  locale,
+  onReplyThread,
+  onLiveAiExchange,
+  onClose,
+}) => {
+  const [selectedHeroine, setSelectedHeroine] = useState<HeroineId>('layla');
+  const [zoomSnap, setZoomSnap] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  const pendingForHeroine = availableThreads.find(
+    (th) => th.heroine === selectedHeroine
+  );
+  const pastMessages = state.activeReplies[selectedHeroine] || [];
+  const profile = HEROINES[selectedHeroine];
   const hState = state.heroines[selectedHeroine];
   const moodInfo = MOOD_META[hState.mood];
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [pastMessages.length, selectedHeroine, isSending]);
+
+  const sendLiveMessage = async (textToSend?: string) => {
+    const clean = (textToSend ?? draft).trim();
+    if (!clean || isSending) return;
+    setDraft('');
+    setIsSending(true);
+
+    const history = pastMessages.slice(-8).map((m) => ({
+      role: (m.sender === 'you' ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: loc(m.text, locale),
+    }));
+
+    const reply = await generateHeroineAiReply({
+      heroineId: selectedHeroine,
+      userText: clean,
+      history,
+      state,
+      locale,
+      contextMode: 'phone',
+    });
+
+    onLiveAiExchange(selectedHeroine, clean, reply);
+    setIsSending(false);
+  };
+
+  const quickPrompts =
+    locale === 'ckb'
+      ? [
+          '🔥 ئەمشەو زۆر سەرنجڕاکێشیت، ناتوانم چاوم لەسەرت لابەم...',
+          '💋 وەرە بۆ سویتی ١٧٠٩، دەرگاکەم بۆ تۆ بە کراوەیی هێشتووەتەوە...',
+          '💖 پێم بڵێ کاتێک دەستت لێ دەدەم هەست بە چی دەکەیت؟',
+        ]
+      : [
+          '🔥 You looked breathtaking tonight… I still can’t stop thinking about you.',
+          '💋 Come to Suite 1709—I left the door unlocked just for you.',
+          '💖 Tell me honestly… how fast does your heart beat when I get close?',
+        ];
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="phone-frame" onClick={(e) => e.stopPropagation()}>
         <div className="phone-notch-bar">
           <span className="phone-brand">
-            <MessageCircle size={15} /> Velvet DM
+            <MessageCircle size={15} /> Velvet DM • AI Live
           </span>
           <button className="icon-btn" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
 
-        {/* Contact Switcher */}
         <div className="phone-contacts-row">
-          {heroineIds.map((hid) => {
-            const prof = HEROINES[hid];
-            const unread = availableThreads.some((t) => t.heroine === hid);
+          {(['layla', 'celine', 'aria'] as HeroineId[]).map((hid) => {
+            const hProf = HEROINES[hid];
+            const hasUnread = availableThreads.some((th) => th.heroine === hid);
             return (
               <button
                 key={hid}
@@ -53,100 +103,154 @@ export const PhoneOverlay: React.FC<{
                 onClick={() => setSelectedHeroine(hid)}
               >
                 <div className="contact-avatar-wrap">
-                  <img src={prof.avatar} alt={loc(prof.name, locale)} />
-                  {unread && <span className="unread-dot" />}
+                  <img src={hProf.avatar} alt={loc(hProf.name, locale)} />
+                  {hasUnread && <span className="unread-dot" />}
                 </div>
-                <span>{loc(prof.name, locale)}</span>
+                <span>{loc(hProf.name, locale)}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Active Contact Mood Header */}
         <div className="phone-chat-subheader">
           <div>
-            <strong style={{ color: hProfile.color }}>{loc(hProfile.name, locale)}</strong>
-            <small className="mood-pill" style={{ color: moodInfo.color }}>
+            <strong>{loc(profile.name, locale)}</strong>
+            <span className="mood-pill" style={{ color: moodInfo.color }}>
               {moodInfo.icon} {loc(moodInfo.label, locale)}
-            </small>
+            </span>
           </div>
           <span className="rel-lv-chip">
-            Lv.{hState.rank} • ❤️ {hState.affection}
+            Lv.{hState.rank} • ❤️ {hState.affection} • 🔥 {hState.desire}%
           </span>
         </div>
 
-        {/* Messages Feed */}
         <div className="phone-messages-body">
-          {pastMessages.length === 0 && !activeThread && (
-            <p className="empty-chat-note">
+          {pastMessages.length === 0 && !pendingForHeroine && (
+            <div className="empty-chat-note">
               {locale === 'ckb'
-                ? 'لە ئێستادا هیچ نامەیەکی نوێ نییە. بچۆ بۆ ژوان لە شوێنەکان بۆ کردنەوەی نامەی درەنگانی شەو!'
-                : 'No new messages right now. Spend time together in the hotel to trigger late-night DMs!'}
-            </p>
+                ? `✨ زیرەکیی دەستکردی ناوخۆیی (بێ کلیل و بێ سنوور) ئامادەیە! هەر شتێکت دەوێت لە خوارەوە بۆ ${loc(profile.name, locale)} بنووسە!`
+                : `✨ Built-in Free AI Roleplay is ready! Type anything below to talk & flirt with ${loc(profile.name, locale)}!`}
+            </div>
           )}
 
-          {pastMessages.map((m, idx) => (
-            <div key={`past-${idx}`} className={`chat-bubble ${m.sender}`}>
-              {m.image && (
+          {pastMessages.map((msg, i) => (
+            <div
+              key={i}
+              className={`chat-bubble ${msg.sender === 'you' ? 'you' : 'her'}`}
+            >
+              {msg.image && (
                 <img
-                  src={m.image}
-                  alt="Snap"
+                  src={msg.image}
+                  alt="snap"
                   className="chat-snap-img"
-                  onClick={() => setZoomPhoto(m.image!)}
+                  onClick={() => setZoomSnap(msg.image!)}
                 />
               )}
-              <p>{loc(m.text, locale)}</p>
+              <p>{loc(msg.text, locale)}</p>
             </div>
           ))}
 
-          {activeThread &&
-            activeThread.opening.map((m, idx) => (
-              <div key={`open-${idx}`} className={`chat-bubble ${m.sender} fresh`}>
-                {m.image && (
+          {pendingForHeroine &&
+            pendingForHeroine.opening.map((msg, idx) => (
+              <div key={`open-${idx}`} className="chat-bubble her new-pulse">
+                {msg.image && (
                   <img
-                    src={m.image}
-                    alt="Snap"
+                    src={msg.image}
+                    alt="snap"
                     className="chat-snap-img"
-                    onClick={() => setZoomPhoto(m.image!)}
+                    onClick={() => setZoomSnap(msg.image!)}
                   />
                 )}
-                <p>{loc(m.text, locale)}</p>
+                <p>{loc(msg.text, locale)}</p>
               </div>
             ))}
+
+          {isSending && (
+            <div className="chat-bubble her typing-bubble">
+              <p>
+                {locale === 'ckb'
+                  ? `${loc(profile.name, locale)} خەریکی نووسینی وەڵامێکی درێژ و گەرمە... 💬`
+                  : `${loc(profile.name, locale)} is writing a passionate reply... 💬`}
+              </p>
+            </div>
+          )}
+          <div ref={chatEndRef} />
         </div>
 
-        {/* Reply Choices */}
-        {activeThread ? (
+        {pendingForHeroine && (
           <div className="phone-reply-drawer">
-            <div className="reply-drawer-label">
+            <span className="reply-drawer-label">
               <Sparkles size={13} />{' '}
               {locale === 'ckb'
-                ? 'شێوازی وەڵامدانەوەکەت هەڵبژێرە (بێ بەکارهێنانی وزە):'
-                : 'Choose your reply tone (0 Energy):'}
-            </div>
-            {activeThread.options.map((opt, idx) => (
+                ? 'وەڵامی نامە و وێنەکەی بدەرەوە:'
+                : 'Reply to her midnight snap:'}
+            </span>
+            {pendingForHeroine.options.map((opt, idx) => (
               <button
                 key={idx}
                 className="phone-reply-btn"
-                onClick={() => onReplyThread(activeThread, idx)}
+                onClick={() => onReplyThread(pendingForHeroine, idx)}
               >
                 <Send size={14} />
                 <span>{loc(opt.label, locale)}</span>
               </button>
             ))}
           </div>
-        ) : (
-          <div className="phone-footer-idle">
-            {locale === 'ckb' ? '✓ هەموو نامەکانی خوێندرایەوە' : '✓ All caught up'}
-          </div>
         )}
 
-        {zoomPhoto && (
-          <div className="zoom-lightbox" onClick={() => setZoomPhoto(null)}>
-            <img src={zoomPhoto} alt="Snap Zoom" />
+        <div className="live-ai-composer">
+          <div className="quick-flirt-scroll">
+            {quickPrompts.map((qp, idx) => (
+              <button
+                key={idx}
+                className="quick-flirt-chip"
+                disabled={isSending}
+                onClick={() => sendLiveMessage(qp)}
+              >
+                {qp}
+              </button>
+            ))}
           </div>
-        )}
+          <form
+            className="live-chat-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendLiveMessage();
+            }}
+          >
+            <input
+              type="text"
+              className="live-chat-input"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={
+                locale === 'ckb'
+                  ? `قسەی دڵت بە ئازادی بۆ ${loc(profile.name, locale)} بنووسە...`
+                  : `Say anything to ${loc(profile.name, locale)}...`
+              }
+            />
+            <button
+              type="submit"
+              className="live-send-btn"
+              disabled={isSending || !draft.trim()}
+            >
+              <Send size={16} />
+            </button>
+          </form>
+        </div>
       </div>
+
+      {zoomSnap && (
+        <div
+          className="zoom-lightbox"
+          onClick={(e) => {
+            e.stopPropagation();
+            setZoomSnap(null);
+          }}
+        >
+          <img src={zoomSnap} alt="Snap" />
+        </div>
+      )}
     </div>
   );
 };

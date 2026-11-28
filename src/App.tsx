@@ -17,6 +17,7 @@ import {
   Play,
   RotateCcw,
   Search,
+  Send,
   ShoppingBag,
   Sparkles,
   Volume2,
@@ -53,6 +54,13 @@ import {
   PHONE_THREADS,
   RUBY_CLUE_SCENES,
 } from './data/encounters';
+import {
+  enrichDynamicScene,
+  enrichStoryChapters,
+} from './data/expandedBeats';
+import { generateHeroineAiReply } from './utils/aiRoleplay';
+
+const EXPANDED_CHAPTERS = enrichStoryChapters(HEROINE_CHAPTERS);
 import {
   EncounterChoice,
   FinaleEnding,
@@ -181,6 +189,8 @@ export const App: React.FC = () => {
   const [revealedChars, setRevealedChars] = useState(0);
   const [heartbeatTarget, setHeartbeatTarget] = useState<HeroineId | null>(null);
   const [showMixology, setShowMixology] = useState(false);
+  const [sceneAiDraft, setSceneAiDraft] = useState('');
+  const [isSceneAiLoading, setIsSceneAiLoading] = useState(false);
 
   const [selectedLoc, setSelectedLoc] = useState<LocationId | null>(null);
   const [modal, setModal] = useState<
@@ -398,7 +408,7 @@ export const App: React.FC = () => {
     (hid: HeroineId) => {
       const hState = state.heroines[hid];
       const nextNum = hState.unlockedChapter + 1;
-      return HEROINE_CHAPTERS.find(
+      return EXPANDED_CHAPTERS.find(
         (ch) =>
           ch.heroine === hid &&
           ch.chapterNum === nextNum &&
@@ -436,7 +446,11 @@ export const App: React.FC = () => {
       return;
     }
 
-    const dyn = buildDynamicDateScene(hid, locId);
+    const dyn = enrichDynamicScene(
+      hid,
+      locId,
+      buildDynamicDateScene(hid, locId)
+    );
     setEncounter({
       title: {
         ckb: `ژوانی تایبەت لەگەڵ ${HEROINES[hid].name.ckb}`,
@@ -768,6 +782,98 @@ export const App: React.FC = () => {
     });
 
     showToast(`📱 +${opt.affectionDelta} ❤️  +${opt.desireDelta} 🔥`);
+  };
+
+  // Live Free AI Phone Exchange
+  const handleLiveAiPhoneExchange = (
+    hid: HeroineId,
+    userMsg: string,
+    herReply: string
+  ) => {
+    triggerHaptic('small');
+    fireBurst('heart');
+    setState((prev) => {
+      const curH = prev.heroines[hid];
+      const nextAff = curH.affection + 6;
+      const prevMsgs = prev.activeReplies[hid] || [];
+      return {
+        ...prev,
+        activeReplies: {
+          ...prev.activeReplies,
+          [hid]: [
+            ...prevMsgs,
+            { sender: 'you', text: { ckb: userMsg, en: userMsg } },
+            { sender: 'her', text: { ckb: herReply, en: herReply } },
+          ],
+        },
+        heroines: {
+          ...prev.heroines,
+          [hid]: {
+            ...curH,
+            affection: nextAff,
+            desire: Math.min(100, curH.desire + 6),
+            rank: computeRank(nextAff),
+          },
+        },
+      };
+    });
+    showToast('💬 AI +6 ❤️  +6 🔥');
+  };
+
+  // Live Free AI In-Scene Continuation right on the VN Stage!
+  const handleContinueSceneWithAi = async (customText?: string) => {
+    if (!encounter?.heroine || isSceneAiLoading) return;
+    const textToUse = (customText ?? sceneAiDraft).trim();
+    if (!textToUse) return;
+    setSceneAiDraft('');
+    setIsSceneAiLoading(true);
+    audioEngine.playTap(true);
+
+    const hid = encounter.heroine;
+    const history = encounter.beats.slice(-5).map((b) => ({
+      role: (b.speaker === 'you' ? 'user' : 'assistant') as
+        | 'user'
+        | 'assistant',
+      content: b.text[locale],
+    }));
+
+    const aiReply = await generateHeroineAiReply({
+      heroineId: hid,
+      userText: textToUse,
+      history,
+      state,
+      locale,
+      contextMode: 'scene',
+    });
+
+    advanceTimeAndUpdateHeroine(hid, 6, 7, 3, { spendEnergy: false });
+    fireBurst('flame');
+    triggerHaptic('medium');
+    showToast('🔥 +6 ❤️  +7 🔥');
+
+    const newBeats: SceneBeat[] = [
+      ...encounter.beats,
+      {
+        speaker: 'you',
+        image: HEROINES[hid].avatar,
+        camera: 'close',
+        text: { ckb: textToUse, en: textToUse },
+      },
+      {
+        speaker: hid,
+        image: HEROINES[hid].blushArt,
+        camera: 'intimate_zoom',
+        effect: 'heartbeat',
+        text: { ckb: aiReply, en: aiReply },
+      },
+    ];
+
+    setEncounter({
+      ...encounter,
+      beats: newBeats,
+      beatIndex: newBeats.length - 2,
+    });
+    setIsSceneAiLoading(false);
   };
 
   const handleBuyGift = (gift: GiftItem) => {
@@ -1404,6 +1510,82 @@ export const App: React.FC = () => {
                 </motion.div>
               )}
 
+            {/* Live AI Scene Continuation Bar at End of Any Heroine Scene */}
+            {!isTyping &&
+              encounter.beatIndex >= encounter.beats.length - 1 &&
+              !encounter.choices &&
+              !encounter.ending &&
+              encounter.heroine && (
+                <div
+                  className="scene-ai-live-box"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="scene-ai-chips">
+                    <button
+                      className="quick-flirt-chip"
+                      disabled={isSceneAiLoading}
+                      onClick={() =>
+                        handleContinueSceneWithAi(
+                          locale === 'ckb'
+                            ? 'زیاتر لێت نزیک دەبمەوە، کەمەرت دەگرم و بە چرپە لە بن گوێت پێت دەڵێم چەندە تامەزرۆی تۆم ئەمشەو...'
+                            : 'I pull you flush into my arms and whisper against your ear how badly I want you tonight…'
+                        )
+                      }
+                    >
+                      {locale === 'ckb'
+                        ? '🔥 زیاتر لە باوەشی بگرە و بچرپێنە...'
+                        : '🔥 Pull her closer & whisper…'}
+                    </button>
+                    <button
+                      className="quick-flirt-chip"
+                      disabled={isSceneAiLoading}
+                      onClick={() =>
+                        handleContinueSceneWithAi(
+                          locale === 'ckb'
+                            ? 'پەنجەکانم دەخەمە ژێر چەناگەت و ماچێکی گەرم و درێژ لەسەر لێوت دادەنێم...'
+                            : 'I tilt your chin up gently and claim a slow, lingering kiss…'
+                        )
+                      }
+                    >
+                      {locale === 'ckb'
+                        ? '💋 ماچێکی گەرم و درێژ...'
+                        : '💋 Steal a lingering kiss…'}
+                    </button>
+                  </div>
+                  <form
+                    className="live-chat-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleContinueSceneWithAi();
+                    }}
+                  >
+                    <input
+                      type="text"
+                      className="live-chat-input"
+                      value={sceneAiDraft}
+                      disabled={isSceneAiLoading}
+                      onChange={(e) => setSceneAiDraft(e.target.value)}
+                      placeholder={
+                        isSceneAiLoading
+                          ? locale === 'ckb'
+                            ? 'AI خەریکی درێژەدانە بە دیمەنەکە...'
+                            : 'AI is continuing the scene...'
+                          : locale === 'ckb'
+                          ? 'بە ئازادی بنووسە چی دەڵێیت یان چی دەکەیت (AI)...'
+                          : 'Type anything to say or do next (Live AI)...'
+                      }
+                    />
+                    <button
+                      type="submit"
+                      className="live-send-btn"
+                      disabled={isSceneAiLoading || !sceneAiDraft.trim()}
+                    >
+                      <Send size={15} />
+                    </button>
+                  </form>
+                </div>
+              )}
+
             {/* Dialogue Box */}
             <div className="dialogue-panel" onClick={handleSceneTap}>
               <div className="dialogue-top-row">
@@ -1523,6 +1705,7 @@ export const App: React.FC = () => {
           availableThreads={availableThreads}
           locale={locale}
           onReplyThread={handleReplyPhone}
+          onLiveAiExchange={handleLiveAiPhoneExchange}
           onClose={() => setModal(null)}
         />
       )}
