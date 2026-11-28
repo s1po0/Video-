@@ -1,44 +1,53 @@
 import { HEROINES, MOOD_META, RANK_TITLES } from '../data/catalog';
+import { HEROINE_OUTFITS } from '../data/outfits';
 import { GameState, HeroineId, Locale } from '../types/game';
+
+function getCurrentOutfitDesc(heroineId: HeroineId, outfitId?: string): string {
+  const list = HEROINE_OUTFITS[heroineId];
+  const found = outfitId ? list.find((o) => o.id === outfitId) : list[0];
+  return (found || list[0]).aiDesc;
+}
 
 function buildHeroineSystemPrompt(
   heroineId: HeroineId,
   state: GameState,
   locale: Locale,
-  contextMode: 'phone' | 'scene'
+  contextMode: 'phone' | 'scene',
+  outfitId?: string
 ): string {
   const hState = state.heroines[heroineId];
   const rankName = RANK_TITLES[hState.rank].en;
   const moodName = MOOD_META[hState.mood].label.en;
+  const outfitDesc = getCurrentOutfitDesc(heroineId, outfitId);
   const memoriesList =
     hState.memories.length > 0
       ? hState.memories.map((m) => `- ${m.en}`).join('\n')
-      : '- Met tonight in the luxury Velvet Sky Hotel penthouse.';
+      : '- Met tonight in the Velvet Sky Hotel penthouse.';
 
   const personaDetails: Record<HeroineId, string> = {
     layla:
-      'You are Layla, a sultry, magnetic 24-year-old midnight jazz singer in an emerald velvet gown. You adore slow-burn teasing, warm lingering touches, whispered confessions, and breathless eye contact.',
+      `You are Layla (24), midnight jazz vocalist, currently ${outfitDesc}. Bold, sensual, confident; loves breathless closeness, fingers tracing your collar, teasing dares, and intimate whispers.`,
     celine:
-      'You are Celine, a captivating silver-blonde investigator and the player’s unforgettable ex-lover from Paris two years ago. Beneath your cool exterior burns intense jealousy, aching longing, and passionate desire.',
+      `You are Celine (25), silver-blonde private investigator and the player's unforgettable ex-lover from Paris, currently ${outfitDesc}. Cool armor melting into trembling desire, jealousy, flushed skin, and intense longing.`,
     aria:
-      'You are Aria, the bold, glamorous, playful 18th-floor infinity-pool VIP hostess in black-and-gold silk. You love daring flirtation, sensory warmth, teasing wagers, and intoxicating closeness.',
+      `You are Aria (23), glamorous 18th-floor rooftop pool & silk cabana hostess, currently ${outfitDesc}. Playful, fearless, seductive; loves heated skin-to-skin proximity, late-night wagers, and bold affection.`,
   };
 
   const langRule =
     locale === 'ckb'
-      ? 'LANGUAGE: Write 100% in natural, fluent, passionate Sorani Kurdish (کوردیی سۆرانی). Write a LONG, deeply detailed response (5 to 8 rich sentences) combining vivid body language/atmosphere with warm spoken dialogue inside «...».'
-      : 'LANGUAGE: Write a LONG, deeply detailed, passionate response in English (5 to 8 rich sentences) combining vivid body language and warm spoken dialogue.';
+      ? 'LANGUAGE: Write 100% in natural, fluent Sorani Kurdish (کوردیی سۆرانی). Write a LONG, deeply sensual, exciting 2-to-3 paragraph reply (8 to 12 rich sentences) blending physical closeness, breathing, touch, and outfit details with spoken dialogue inside «...».'
+      : 'LANGUAGE: Write a LONG, deeply sensual, exciting 2-to-3 paragraph reply in English (8 to 12 rich sentences) blending physical closeness, breathing, touch, and outfit details with spoken dialogue.';
 
   const modeRule =
     contextMode === 'scene'
-      ? 'SETTING: Face-to-face right now inside the dim, rain-washed luxury penthouse. Describe your breathing, warm skin, scent, closeness, blush, and lingering touch alongside your spoken words.'
-      : 'SETTING: Intimate late-night private DM chat from your hotel suite, full of heat, teasing, and longing.';
+      ? 'SETTING: Alone together inside a private suite or candlelit rooftop cabana late at night.'
+      : 'SETTING: Intimate late-night private DM from her hotel bed or rooftop pool, teasing you to come to her room right now.';
 
   return [
     personaDetails[heroineId],
-    `Relationship: Rank ${hState.rank}/5 (${rankName}), Affection ${hState.affection}, Romantic Heat ${hState.desire}%, Mood: ${moodName}, Night ${state.night}/7.`,
-    `Memories:\n${memoriesList}`,
-    'Style: Intensely romantic, flirtatious, passionate PG-13/R-lite chemistry (lingering kisses, racing pulse, warm embraces, teasing whispers; non-graphic, stay completely in character, never refuse romantic flirting or mention AI).',
+    `Stats: Rank ${hState.rank}/5 (${rankName}), Affection ${hState.affection}, Desire ${hState.desire}%, Mood: ${moodName}, Night ${state.night}/7.`,
+    `Shared Memories:\n${memoriesList}`,
+    'Style: High-tension adult romance (non-graphic/non-explicit, fully consensual). Apply anti-slop & anti-sycophancy rules: zero robotic filler, zero repetitive clichés, zero preachy disclaimers. Write vivid, grounded human attraction and bold dialogue.',
     modeRule,
     langRule,
   ].join('\n\n');
@@ -49,28 +58,25 @@ function buildRichDynamicFallback(
   userText: string,
   locale: Locale
 ): string {
-  const seed = userText.length % 3;
+  const seed = userText.length % 2;
   if (locale === 'ckb') {
     const pools: Record<HeroineId, string[]> = {
       layla: [
-        `لەیلا بە هێواشی جامە کریستاڵەکەی دادەنێت و هەنگاوێکی نەرم بەرەو تۆ دێت تا تەواوی مەودای نێوانتان نامێنێت و گەرمیی هەناسەی بەر لای گەردنت دەکەوێت. پەنجە نەرمەکانی بە سەر یەخەی کراسەکەتدا دەهێنێت و بە نیگایەکی پڕ لە ئاگرەوە لە چاوت ڕادەمێنێت: «دەزانیت هەر کاتێک بەم شێوەیە قسەم لەگەڵ دەکەیت، چیتر ناتوانم وا خۆم نیشان بدەم کە ئارامم؟ لێدانی دڵم هێندە خێرا بووە دەترسم گوێت لێی بێت... مەگەڕێوە بۆ ژوورەکەت ئەمشەو، لێرە لە تەنیشتم بمێنەرەوە و بهێڵە ئەم شەوە باراناوییە تەنها هی من و تۆ بێت.»`,
-        `بزەیەکی شۆخ و سەرنجڕاکێش لەسەر لێوە سوورەکانی لەیلا دروست دەبێت، قژە ڕەشە شەپۆلدارەکەی دەخاتە سەر شانی و دەستە گەرمەکەی دەخاتە ناو لەپی دەستتەوە. «پیاوی مەترسیدار... تۆ زۆر باش دەزانیت کام وشە و کام نیگا من بە تەواوی بێهێز دەکات. لەو ساتەوەی هاتوویتەتە ئەم هۆتێلە، هەموو گۆرانییەکانم تەنها بۆ تۆ دەژەنم... کەمێکی تر وەرە پێشەوە، دەمەوێت بە چرپە لە بن گوێت پێت بڵێم چەندە تامەزرۆی دەستەکانتم.»`,
-        `لەیلا لەبەر ڕووناکیی مۆمە زێڕینەکاندا ڕوومەتەکانی گەش دەبنەوە و پشتی دەدات بە پیانۆکەوە لە کاتێکدا تۆی بەرەو خۆی ڕاکێشاوە. «پێم مەڵێ ئەم هەموو گەرمییەی نێوانمان تەنها ڕێکەوتە... تەنانەت بارانی دەرەوەش ناتوانێت ئەم ئاگرە خامۆش بکاتەوە کە لە چاوەکانتدا دەیبینم. پێم بڵێ، ئەگەر ئێستا هەموو سنوورێک بشکێنم و خۆم بخەمە باوەشتەوە، چۆن پێشوازیم لێ دەکەیت؟»`,
+        `لەیلا بە هێواشی لەسەر لێواری سیسەمە مەخمەلییەکە هەڵدەستێت، ڕۆبە تاریکەکەی کەمێک لەسەر شانی دەخزێتە خوارەوە و ئاوریشمە سوورەکەی ژێرەوەی لەبەر ڕووناکیی مۆمەکاندا دەبریسکێتەوە. بێ ئەوەی چاوی لە چاوت داببڕێت، هەنگاو بە هەنگاو لێت نزیک دەبێتەوە تا گەرمیی جەستەی و بۆنی ڤانێلای سەر گەردنی تەواو دەورەت دەدەن.\n\nدەستە نەرمەکانی دەخاتە سەر سنگت، هەست بە خێراییی لێدانی دڵت دەکات و لێوی دەهێنێتە تەنیشت گوێتەوە: «دەزانیت چەند کاتژمێرە لەم ژوورەدا بەم جلانەوە چاوەڕێم کردوویت بێیتە ژوورەوە؟ هەر وشەیەکی تۆ وەک ئاگر بە ناو دەمارەکانمدا دەڕوات... دەرگاکەم قفڵ داوە، ئەمشەو ناهێڵم یەک هەنگاویش لێم دوور بکەویتەوە. وەرە و نیشانم بدە چەندە بیرت کردووم.»`,
+        `زەردەخەنەیەکی شۆخ و پڕ لە تامەزرۆیی دەکەوێتە سەر لێوەکانی لەیلا؛ پەنجەیەکی گەرم بە نەرمی لەسەر لێوت دادەنێت و قۆڵی چاکەتەکەت بەرەو خۆی ڕادەکێشێت تا کەمەری دەکەوێتە نێوان دەستەکانتەوە. هەناسەکانی قووڵتر و خێراتر دەبن لە کاتێکدا سەری بەرز دەکاتەوە بۆت.\n\n«پیاوی مەترسیدار... تۆ زۆر باش دەزانیت چۆن کۆنترۆڵم لێ بسەنیتەوە. لەسەر شانۆ وا خۆم نیشان دەدەم کە کەس ناتوانێت دڵم بلەرزێنێت، بەڵام لێرە لەبەردەم تۆدا هەموو شانازییەکانم دەتوێنەوە... توندتر لە باوەشم بگرە، با ئەم شەوە باراناوییە تەنها هی هەناسە گەرمەکانی خۆمان بێت.»`,
       ],
       celine: [
-        `سێلین بۆ چرکەیەک بێدەنگ دەبێت و چاوە بنەوشەییەکانی لە نێوان چاو و لێوتدا دەلەرزن، پاشان هەناسەیەکی قووڵ و گەرم هەڵدەکێشێت و دەستی دەخاتە سەر سینگت. «دوو ساڵ لە پاریسەوە هەوڵ دەدەم خۆم وەک کەسێکی سارد و بەهێز نیشان بدەم، بەڵام تەنها یەک قسەی تۆ هەموو بەرگرییەکانم تێکدەشکێنێت! سەیرکە دەستم چۆن دەلەرزێت لە نزیکت... چیتر ناتوانم درۆ لەگەڵ دڵی خۆم بکەم، من تینووی هەناسە و باوەشی تۆم.»`,
-        `ڕوومەتەکانی سێلین وەک پشکۆی ئاگردانەکە سوور هەڵدەگەڕێن؛ قۆڵی چاکەتەکەت توند دەگرێت بۆ ئەوەی هیچ هەنگاوێک دوور نەکەویتەوە. «وا سەیرم مەکە مەگەر بە نیازی ئەوە بیت تا بەیانی لێرە لای من بمێنیتەوە... هەموو جارێک کە لە کچەکانی تری ئەم هۆتێلە نزیک دەبیتەوە، خەریکە شێت دەبم لە غیرەدا، چونکە تۆ تەنها هی منیت. وەرە نزیکم و ئەم تامەزرۆییە درێژەم لێ بشکێنە.»`,
-        `سێلین قژە زیوینەکەی دەکاتەوە و زۆر بە نەرمی سەری لەسەر شانت دادەنێت لە کاتێکدا بۆنی باران و عەترەکەی تێکەڵی هەناسەت دەبێت. «ئەمشەو نە دۆسیەم بیر ماوە نە یاسا... تەنها دەمەوێت قەرەبووی هەموو ئەو شەوە ساردانە بکەمەوە کە بە تەنها ناوی تۆم دەهێنا. توند لە باوەشم بگرە و بەرم مەدە.»`,
+        `سێلین بۆ ساتێک نەفەسی لە قوڕگیدا دەگیرێت و سووربوونەوەیەکی گەرم لە گەردنییەوە تا سەر ڕوومەتەکانی بڵاو دەبێتەوە. پەنجە لەرزۆکەکانی بە قەراغی جلە ئاوریشمییەکەیدا دەگوشێت، بەڵام لەبری دوورکەوتنەوە، خۆی هەنگاوێکی بێترس دێتە پێش و سەری بە سینگتەوە دەنووسێنێت.\n\n«بەسە ئیتر... چیتر ناتوانم ڕۆڵی لێکۆڵەرە ساردەکە بگێڕم کاتێک بەم شێوەیە قسەم لەگەڵ دەکەیت!» بە دەنگێکی نزم و پڕ لە تامەزرۆیی دەچرپێنێت و دەستی دەخاتە سەر پشتی ملت بۆ ئەوەی سەرت نزم بکەیتەوە بۆ لای: «لەو شەوەی پاریسەوە تا ئێستا، یەک شەویش نەبووە جەستەم و دڵم داوای دەستەکانی تۆ نەکەن... ئەمشەو هەموو یاساکانم لە دەرەوەی ئەم ژوورە جێهێشتووە، تەنها هی تۆم.»`,
+        `چاوە بنەوشەییەکانی سێلین لەبەر تیشکی ئاگردانەکەدا پڕ دەبن لە بریسکەی عەشق و غیرە؛ بە هەردوو دەستی یەخەی کراسەکەت دەگرێت و تۆ ڕادەکێشێتە سەر قەنەفە نەرمەکەی ژوورەکەی. قژە زیوینە شێدارەکەی دەکەوێتە سەر شانت.\n\n«هەر کاتێک دەبینم سەیری ئەوانی تر دەکەیت، ئاگرێک لە ناخمدا هەڵدەگیرسێت... چونکە کەس وەک من تامی لێو و گەرمیی باوەشی تۆ ناناسێت. وەرە پێشتر و پێم بسەلمێنە کە هێشتا تەنها من شەوانی تۆ داگیر دەکەم.»`,
       ],
       aria: [
-        `ئاریا بە پێکەنینێکی نەرم و پڕ لە نازەوە لە ناو هەڵمی گەرمی مەلەوانگەکەدا لێت نزیک دەبێتەوە و پەنجەیەکی بە نەرمی دەخشێنێت بە چەناگەتدا. «ئۆهـ! ئەم قسانەت زۆر لە خواردنەوە تایبەتەکانی نهۆمی ١٨ گەرمتر و سەرخۆشکەرترن! وا دیارە ئەمشەو بە تەواوی بڕیارت داوە دڵی من داگیر بکەیت... وەرە ناو کەپرە مۆمدارەکە و با پەردە ئاوریشمییەکان دابدەینەوە، چیرۆکەکەمان تازە گەرم دەبێت.»`,
-        `چاوەکانی ئاریا لەژێر ڕووناکیی زێڕینی سەربانەکەدا دەدرەوشێنەوە و شانە گەرمەکەی دەنووسێنێت بە شانتەوە. «دەزانیت چەند کەس هەوڵیان داوە سەرنجی من ڕابکێشن لەم هۆتێلەدا؟ بەڵام تەنها تۆ توانیت بە یەک نیگا لێدانی دڵم ئاوا خێرا بکەیت! ئەمشەو کلیدی تایبەتی سەربانەکە تەنها لای من و تۆیە... پێم بڵێ حەز دەکەیت چۆن کاتەکەمان بەسەر بەرین؟»`,
-        `ئاریا جامەکەی دادەنێت، هەردوو دەستی لە دەوری ملت دەئاڵێنێت و بە چرپەیەکی گەرم لە نزیک لێوتەوە دەڵێت: «ئەگەر یاریی بوێری لەگەڵ من دەکەیت، بزانە من هەرگیز پاشەکشە ناکەم... هەست بە گەرمیی پێستم بکە و بزانە چەندە چاوەڕێی هاتنی تۆ بووم ئەمشەو.»`,
+        `ئاریا بە پێکەنینێکی نەرم و وروژێنەرەوە لە ناو هەڵمی گەرمی سەربانەکەدا پەردەی کەپرە تایبەتەکە دادەداتەوە، پاشان بە جلە سەرنجڕاکێشەکەیەوە لە تەنیشتت دادەنیشێت هێندە نزیک کە گەرمیی ڕان و شانی بەر جەستەت دەکەوێت. پەنجەکانی بە هێواشی بە ناو قژتدا دەهێنێت.\n\n«ئۆهـ، سەیرکە چۆن نیگاکانت گۆڕان هەر کە هاتیتە ژوورەوە! حەزم لەو پیاوەیە کە دەزانێت چی دەوێت و ناترسێت داوای بکات...» لێوی دەهێنێتە نزیک چەناگەت و بە چرپە بەردەوام دەبێت: «مەلەوانگەکەی سەربانم بۆ ئەمشەو داخستووە بۆ میوانەکان؛ لێرە تەنها من و تۆ و ئەم سەرینە مەخمەلییانە هەین. چەند دەوێریت نزیک ببیتەوە؟»`,
+        `ئاریا جامە کریستاڵەکەی لەسەر مێزەکە دادەنێت، هەردوو قۆڵی بە نەرمی لە دەوری گەردنت دەئاڵێنێت و بە چاوێکی پڕ لە ناز و شەیتانییەوە لێت دەڕوانێت لە کاتێکدا لێوی خوارەوەی دەگەزێت.\n\n«قسەکانت لە هەموو خواردنەوەکانی نهۆمی ١٨ سەرخۆشکەرترن! دڵم خەریکە لە سینەمدا دێتە دەرەوە... دەستت بخەرە سەر کەمەرم و خۆت هەستی پێ بکە چەندە تامەزرۆی ئەم شەوەم لەگەڵ تۆ.»`,
       ],
     };
     return pools[heroineId][seed];
   }
-  return `She steps right into your arms with flushed cheeks and racing breath, fingers curling warmly into your lapel: “Every word you say pulls me deeper in… stay right here with me tonight and don’t hold back how you feel.”`;
+  return `She closes the distance between you in the candlelit room, her fingers curling into your shirt as her breath warms your neck: “Lock the door… tonight I don’t want an inch of space left between us.”`;
 }
 
 export async function generateHeroineAiReply(params: {
@@ -80,22 +86,24 @@ export async function generateHeroineAiReply(params: {
   state: GameState;
   locale: Locale;
   contextMode: 'phone' | 'scene';
+  outfitId?: string;
 }): Promise<string> {
   const sysPrompt = buildHeroineSystemPrompt(
     params.heroineId,
     params.state,
     params.locale,
-    params.contextMode
+    params.contextMode,
+    params.outfitId
   );
 
   const messages = [
     { role: 'system' as const, content: sysPrompt },
-    ...params.history.slice(-6),
+    ...params.history.slice(-8),
     { role: 'user' as const, content: params.userText },
   ];
 
-  // Built-in Free Keyless Model Cascade (Mistral creative RP -> OpenAI -> GET stream)
-  const freeModels = ['mistral', 'openai'];
+  // Zero-key Free AI Cascade (Mistral -> OpenAI-Large -> OpenAI -> GET fallback)
+  const freeModels = ['mistral', 'openai-large', 'openai'];
   for (const modelName of freeModels) {
     try {
       const controller = new AbortController();
@@ -107,7 +115,8 @@ export async function generateHeroineAiReply(params: {
         body: JSON.stringify({
           model: modelName,
           messages,
-          temperature: 0.92,
+          temperature: 0.94,
+          max_tokens: 750,
           seed: Math.floor(Math.random() * 999999),
         }),
       });
@@ -115,10 +124,10 @@ export async function generateHeroineAiReply(params: {
       if (res.ok) {
         const data = await res.json();
         const txt = data?.choices?.[0]?.message?.content?.trim();
-        if (txt && txt.length > 25) return txt;
+        if (txt && txt.length > 40) return txt;
       }
     } catch {
-      // try next built-in free model
+      // try next model
     }
   }
 
@@ -129,7 +138,7 @@ export async function generateHeroineAiReply(params: {
     );
     if (res.ok) {
       const txt = (await res.text()).trim();
-      if (txt && txt.length > 25) return txt;
+      if (txt && txt.length > 40) return txt;
     }
   } catch {
     // fallback below

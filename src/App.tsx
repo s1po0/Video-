@@ -35,6 +35,13 @@ import {
 import { HeartbeatMinigame, MixologyMinigame } from './components/MiniGames';
 import { PhoneOverlay } from './components/PhoneOverlay';
 import {
+  getEquippedOutfitImage,
+  HotelTowerMap,
+} from './components/HotelTowerMap';
+import { WardrobeModal } from './components/WardrobeModal';
+import { HEROINE_OUTFITS } from './data/outfits';
+import { TowerHotspot } from './data/towerMap';
+import {
   computeRank,
   GALLERY_CGS,
   GIFTS_CATALOG,
@@ -193,8 +200,27 @@ export const App: React.FC = () => {
   const [isSceneAiLoading, setIsSceneAiLoading] = useState(false);
 
   const [selectedLoc, setSelectedLoc] = useState<LocationId | null>(null);
+  const [selectedHotspot, setSelectedHotspot] = useState<TowerHotspot | null>(
+    null
+  );
+  const [hubViewMode, setHubViewMode] = useState<'tower' | 'cards'>('tower');
+  const [equippedOutfits, setEquippedOutfits] = useState<
+    Record<HeroineId, string>
+  >(() => {
+    try {
+      const saved = localStorage.getItem('midnight_velvet_outfits_v23');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return {
+      layla: 'layla_crimson',
+      celine: 'celine_dress',
+      aria: 'aria_swim',
+    };
+  });
   const [modal, setModal] = useState<
-    null | 'phone' | 'dossier' | 'shop' | 'gallery'
+    null | 'phone' | 'dossier' | 'shop' | 'gallery' | 'wardrobe'
   >(null);
   const [giftTarget, setGiftTarget] = useState<HeroineId | null>(null);
   const [zoomCg, setZoomCg] = useState<string | null>(null);
@@ -784,11 +810,53 @@ export const App: React.FC = () => {
     showToast(`📱 +${opt.affectionDelta} ❤️  +${opt.desireDelta} 🔥`);
   };
 
+  const handleEquipOutfit = (hid: HeroineId, outfitId: string) => {
+    triggerHaptic('small');
+    audioEngine.playTap(true);
+    setEquippedOutfits((prev) => {
+      const next = { ...prev, [hid]: outfitId };
+      try {
+        localStorage.setItem('midnight_velvet_outfits_v23', JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+    unlockCgId(outfitId);
+    showToast(
+      locale === 'ckb'
+        ? '🔥 جلوبەرگەکەی گۆڕدرا!'
+        : '🔥 Outfit updated!'
+    );
+  };
+
+  const handleInspectRoomSecret = (spot: TowerHotspot) => {
+    audioEngine.init();
+    audioEngine.setMood('passionate_strings');
+    triggerHaptic('medium');
+    setSelectedHotspot(null);
+    setSelectedLoc(null);
+    if (spot.privateOwner) {
+      advanceTimeAndUpdateHeroine(spot.privateOwner, 8, 12, 5, {
+        spendEnergy: false,
+      });
+      showToast('🔥 نهێنیی ژوور دۆزرایەوە! +8 ❤️  +12 🔥');
+    }
+    setEncounter({
+      title: spot.secretObject.discoveryTitle,
+      heroine: spot.privateOwner,
+      beats: spot.secretObject.beats,
+      beatIndex: 0,
+    });
+    setScreen('scene');
+  };
+
   // Live Free AI Phone Exchange
   const handleLiveAiPhoneExchange = (
     hid: HeroineId,
     userMsg: string,
-    herReply: string
+    herReply: string,
+    herSnap?: string
   ) => {
     triggerHaptic('small');
     fireBurst('heart');
@@ -803,7 +871,11 @@ export const App: React.FC = () => {
           [hid]: [
             ...prevMsgs,
             { sender: 'you', text: { ckb: userMsg, en: userMsg } },
-            { sender: 'her', text: { ckb: herReply, en: herReply } },
+            {
+              sender: 'her',
+              text: { ckb: herReply, en: herReply },
+              image: herSnap,
+            },
           ],
         },
         heroines: {
@@ -811,7 +883,7 @@ export const App: React.FC = () => {
           [hid]: {
             ...curH,
             affection: nextAff,
-            desire: Math.min(100, curH.desire + 6),
+            desire: Math.min(100, curH.desire + 8),
             rank: computeRank(nextAff),
           },
         },
@@ -844,24 +916,26 @@ export const App: React.FC = () => {
       state,
       locale,
       contextMode: 'scene',
+      outfitId: equippedOutfits[hid],
     });
 
-    advanceTimeAndUpdateHeroine(hid, 6, 7, 3, { spendEnergy: false });
+    advanceTimeAndUpdateHeroine(hid, 7, 9, 4, { spendEnergy: false });
     fireBurst('flame');
     triggerHaptic('medium');
-    showToast('🔥 +6 ❤️  +7 🔥');
+    showToast('🔥 +7 ❤️  +9 🔥');
 
+    const equippedImg = getEquippedOutfitImage(hid, equippedOutfits);
     const newBeats: SceneBeat[] = [
       ...encounter.beats,
       {
         speaker: 'you',
-        image: HEROINES[hid].avatar,
+        image: equippedImg,
         camera: 'close',
         text: { ckb: textToUse, en: textToUse },
       },
       {
         speaker: hid,
-        image: HEROINES[hid].blushArt,
+        image: equippedImg,
         camera: 'intimate_zoom',
         effect: 'heartbeat',
         text: { ckb: aiReply, en: aiReply },
@@ -1087,10 +1161,43 @@ export const App: React.FC = () => {
               <span className="res-pill clues">
                 🔎 {locale === 'ckb' ? 'بەڵگە:' : 'Clues:'} {state.rubyClues}/3
               </span>
+              <button
+                type="button"
+                className="map-toggle-pill"
+                onClick={() =>
+                  setHubViewMode((m) => (m === 'tower' ? 'cards' : 'tower'))
+                }
+              >
+                🗺️{' '}
+                {hubViewMode === 'tower'
+                  ? locale === 'ckb'
+                    ? 'لیست'
+                    : 'Grid'
+                  : locale === 'ckb'
+                  ? 'نەخشەی تاوەر'
+                  : 'Tower Map'}
+              </button>
             </div>
           </header>
 
-          {/* Interactive 6-Location Penthouse Map */}
+          {/* Interactive Illustrated 7-Floor Hotel Tower Map OR Cards */}
+          {hubViewMode === 'tower' ? (
+            <HotelTowerMap
+              state={state}
+              locale={locale}
+              equippedOutfits={equippedOutfits}
+              getHeroinesAtLocation={getHeroinesAtLocation}
+              hasStoryReady={(hid) => Boolean(getNextAvailableChapter(hid))}
+              onSelectHotspot={(spot) => {
+                setSelectedHotspot(spot);
+                if (spot.mappedLoc === 'boutique') {
+                  setModal('shop');
+                } else {
+                  setSelectedLoc(spot.mappedLoc);
+                }
+              }}
+            />
+          ) : (
           <main className="hub-locations-grid">
             {LOCATIONS.map((location) => {
               const presentGirls = getHeroinesAtLocation(location.id);
@@ -1141,8 +1248,9 @@ export const App: React.FC = () => {
               );
             })}
           </main>
+          )}
 
-          {/* Bottom Dock: Phone DM, Girls Dossier, Boutique, Gallery, Rest */}
+          {/* Bottom Dock: Phone DM, Wardrobe, Girls, Boutique, Rest */}
           <nav className="hub-bottom-dock">
             <button
               className="dock-btn"
@@ -1159,6 +1267,14 @@ export const App: React.FC = () => {
 
             <button
               className="dock-btn"
+              onClick={() => setModal('wardrobe')}
+            >
+              <Flame size={19} />
+              <span>{locale === 'ckb' ? 'جلوبەرگ' : 'Outfits'}</span>
+            </button>
+
+            <button
+              className="dock-btn"
               onClick={() => setModal('dossier')}
             >
               <Heart size={19} />
@@ -1171,14 +1287,6 @@ export const App: React.FC = () => {
             >
               <ShoppingBag size={19} />
               <span>{locale === 'ckb' ? 'فرۆشگا' : 'Gifts'}</span>
-            </button>
-
-            <button
-              className="dock-btn"
-              onClick={() => setModal('gallery')}
-            >
-              <ImageIcon size={19} />
-              <span>{locale === 'ckb' ? 'ئەلبووم' : 'Gallery'}</span>
             </button>
 
             <button
@@ -1233,17 +1341,54 @@ export const App: React.FC = () => {
                 </div>
 
                 <div className="modal-body action-sheet-list">
-                  {/* Heroines present here */}
-                  {getHeroinesAtLocation(selectedLoc).map((hid) => {
+                  {selectedHotspot && (
+                    <div
+                      className="room-preview-banner"
+                      style={{
+                        backgroundImage: `url(${selectedHotspot.roomBg})`,
+                      }}
+                    >
+                      <div className="room-preview-shade">
+                        <strong>
+                          {selectedHotspot.icon}{' '}
+                          {loc(selectedHotspot.title, locale)}
+                        </strong>
+                        <small>{loc(selectedHotspot.sub, locale)}</small>
+                        <button
+                          type="button"
+                          className="secret-inspect-btn"
+                          onClick={() =>
+                            handleInspectRoomSecret(selectedHotspot)
+                          }
+                        >
+                          {loc(selectedHotspot.secretObject.label, locale)}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Heroines present here (including private room owner) */}
+                  {Array.from(
+                    new Set([
+                      ...(selectedHotspot?.privateOwner
+                        ? [selectedHotspot.privateOwner]
+                        : []),
+                      ...getHeroinesAtLocation(selectedLoc),
+                    ])
+                  ).map((hid) => {
                     const prof = HEROINES[hid];
                     const hSt = state.heroines[hid];
                     const moodInf = MOOD_META[hSt.mood];
                     const nextCh = getNextAvailableChapter(hid);
+                    const eqAvatar = getEquippedOutfitImage(
+                      hid,
+                      equippedOutfits
+                    );
 
                     return (
                       <div key={hid} className="girl-encounter-box">
                         <div className="girl-box-header">
-                          <img src={prof.avatar} alt={hid} />
+                          <img src={eqAvatar} alt={hid} />
                           <div className="girl-box-meta">
                             <strong style={{ color: prof.color }}>
                               {loc(prof.name, locale)} • Lv.{hSt.rank}
@@ -1415,13 +1560,26 @@ export const App: React.FC = () => {
       )}
 
       {/* ==================== SCREEN 3: VISUAL NOVEL SCENE STAGE ==================== */}
-      {screen === 'scene' && encounter && activeBeat && (
+      {screen === 'scene' && encounter && activeBeat && (() => {
+        const beatHeroine =
+          activeBeat.speaker === 'layla' ||
+          activeBeat.speaker === 'celine' ||
+          activeBeat.speaker === 'aria'
+            ? activeBeat.speaker
+            : null;
+        const resolvedStageImage =
+          beatHeroine &&
+          (activeBeat.image.endsWith('_normal.jpg') ||
+            activeBeat.image.endsWith('_blush.jpg'))
+            ? getEquippedOutfitImage(beatHeroine, equippedOutfits)
+            : activeBeat.image;
+        return (
         <div className="game-stage">
           <AnimatePresence mode="sync">
             <motion.div
-              key={activeBeat.image}
+              key={resolvedStageImage}
               className={`scene-artwork cam-${activeBeat.camera || 'normal'}`}
-              style={{ backgroundImage: `url(${activeBeat.image})` }}
+              style={{ backgroundImage: `url(${resolvedStageImage})` }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1663,7 +1821,8 @@ export const App: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ==================== MINI-GAME OVERLAYS ==================== */}
       {heartbeatTarget && encounter?.pendingChoice && (
@@ -1704,8 +1863,20 @@ export const App: React.FC = () => {
           state={state}
           availableThreads={availableThreads}
           locale={locale}
+          equippedOutfits={equippedOutfits}
           onReplyThread={handleReplyPhone}
           onLiveAiExchange={handleLiveAiPhoneExchange}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* ==================== WARDROBE / HOT OUTFITS ==================== */}
+      {modal === 'wardrobe' && (
+        <WardrobeModal
+          locale={locale}
+          equippedOutfits={equippedOutfits}
+          onEquip={handleEquipOutfit}
+          onZoom={(img) => setZoomCg(img)}
           onClose={() => setModal(null)}
         />
       )}
@@ -1865,17 +2036,15 @@ export const App: React.FC = () => {
               </div>
             </div>
           </div>
-          {zoomCg && (
-            <div
-              className="zoom-lightbox"
-              onClick={(e) => {
-                e.stopPropagation();
-                setZoomCg(null);
-              }}
-            >
-              <img src={zoomCg} alt="CG Full" />
-            </div>
-          )}
+        </div>
+      )}
+
+      {zoomCg && (
+        <div
+          className="zoom-lightbox"
+          onClick={() => setZoomCg(null)}
+        >
+          <img src={zoomCg} alt="CG Full" />
         </div>
       )}
     </div>

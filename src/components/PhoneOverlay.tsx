@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Send, Sparkles, X } from 'lucide-react';
 import { HEROINES, loc, MOOD_META } from '../data/catalog';
+import { HEROINE_OUTFITS } from '../data/outfits';
 import { GameState, HeroineId, Locale, PhoneThread } from '../types/game';
 import { generateHeroineAiReply } from '../utils/aiRoleplay';
 
@@ -8,11 +9,13 @@ interface PhoneProps {
   state: GameState;
   availableThreads: PhoneThread[];
   locale: Locale;
+  equippedOutfits: Record<HeroineId, string>;
   onReplyThread: (thread: PhoneThread, optionIdx: number) => void;
   onLiveAiExchange: (
     heroine: HeroineId,
     userMsg: string,
-    herReply: string
+    herReply: string,
+    herSnap?: string
   ) => void;
   onClose: () => void;
 }
@@ -21,6 +24,7 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
   state,
   availableThreads,
   locale,
+  equippedOutfits,
   onReplyThread,
   onLiveAiExchange,
   onClose,
@@ -43,7 +47,7 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [pastMessages.length, selectedHeroine, isSending]);
 
-  const sendLiveMessage = async (textToSend?: string) => {
+  const sendLiveMessage = async (textToSend?: string, includeSnap?: boolean) => {
     const clean = (textToSend ?? draft).trim();
     if (!clean || isSending) return;
     setDraft('');
@@ -54,6 +58,7 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
       content: loc(m.text, locale),
     }));
 
+    const curOutfitId = equippedOutfits[selectedHeroine];
     const reply = await generateHeroineAiReply({
       heroineId: selectedHeroine,
       userText: clean,
@@ -61,23 +66,57 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
       state,
       locale,
       contextMode: 'phone',
+      outfitId: curOutfitId,
     });
 
-    onLiveAiExchange(selectedHeroine, clean, reply);
+    const wantsPhoto =
+      includeSnap || /وێنە|جل|سێڵفی|photo|pic|snap|wearing|outfit/i.test(clean);
+    const outfits = HEROINE_OUTFITS[selectedHeroine];
+    const snapImg = wantsPhoto
+      ? (outfits.find((o) => o.id === curOutfitId) || outfits[0]).image
+      : undefined;
+
+    onLiveAiExchange(selectedHeroine, clean, reply, snapImg);
     setIsSending(false);
   };
 
   const quickPrompts =
     locale === 'ckb'
       ? [
-          '🔥 ئەمشەو زۆر سەرنجڕاکێشیت، ناتوانم چاوم لەسەرت لابەم...',
-          '💋 وەرە بۆ سویتی ١٧٠٩، دەرگاکەم بۆ تۆ بە کراوەیی هێشتووەتەوە...',
-          '💖 پێم بڵێ کاتێک دەستت لێ دەدەم هەست بە چی دەکەیت؟',
+          {
+            txt: '📸 ئێستا چیت لەبەرە لە ژوورەکەت؟ وێنەیەکی تایبەتم بۆ بنێرە...',
+            snap: true,
+          },
+          {
+            txt: '🔥 دێمە ژوورەکەت ئێستا، دەرگاکەم بۆ بکەرەوە مەهێڵە چاوەڕێ بم...',
+            snap: false,
+          },
+          {
+            txt: '💋 بیر لە گەرمیی لێو و باوەشت دەکەمەوە، ئەمشەو خەوم لێ ناکەوێت...',
+            snap: false,
+          },
+          {
+            txt: '🌊 وەرە سەر مەلەوانگەکەی سەربان با لە ناو کەپرەکە بە تەنها بین!',
+            snap: true,
+          },
         ]
       : [
-          '🔥 You looked breathtaking tonight… I still can’t stop thinking about you.',
-          '💋 Come to Suite 1709—I left the door unlocked just for you.',
-          '💖 Tell me honestly… how fast does your heart beat when I get close?',
+          {
+            txt: '📸 What are you wearing right now? Send me a private late-night snap…',
+            snap: true,
+          },
+          {
+            txt: '🔥 I’m coming straight to your room—leave the door unlocked for me.',
+            snap: false,
+          },
+          {
+            txt: '💋 Can’t stop thinking about your touch tonight… tell me what you want.',
+            snap: false,
+          },
+          {
+            txt: '🌊 Meet me up at the rooftop cabana right now, just the two of us.',
+            snap: true,
+          },
         ];
 
   return (
@@ -96,6 +135,9 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
           {(['layla', 'celine', 'aria'] as HeroineId[]).map((hid) => {
             const hProf = HEROINES[hid];
             const hasUnread = availableThreads.some((th) => th.heroine === hid);
+            const eqImg =
+              HEROINE_OUTFITS[hid].find((o) => o.id === equippedOutfits[hid])
+                ?.image || hProf.avatar;
             return (
               <button
                 key={hid}
@@ -103,7 +145,7 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
                 onClick={() => setSelectedHeroine(hid)}
               >
                 <div className="contact-avatar-wrap">
-                  <img src={hProf.avatar} alt={loc(hProf.name, locale)} />
+                  <img src={eqImg} alt={loc(hProf.name, locale)} />
                   {hasUnread && <span className="unread-dot" />}
                 </div>
                 <span>{loc(hProf.name, locale)}</span>
@@ -203,11 +245,12 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
             {quickPrompts.map((qp, idx) => (
               <button
                 key={idx}
+                type="button"
                 className="quick-flirt-chip"
                 disabled={isSending}
-                onClick={() => sendLiveMessage(qp)}
+                onClick={() => sendLiveMessage(qp.txt, qp.snap)}
               >
-                {qp}
+                {qp.txt}
               </button>
             ))}
           </div>
