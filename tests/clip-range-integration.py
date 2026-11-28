@@ -77,7 +77,7 @@ with tempfile.TemporaryDirectory() as temporary:
         cmd = ['python3', '-m', 'yt_dlp', '-f','137+140', '--load-info-json', str(infofile), '--no-playlist', '--ffmpeg-location', ffmpeg,
                '--download-sections', '*3-15', '--force-keyframes-at-cuts',
                '--downloader-args', 'ffmpeg_i:-request_size 8388608 -short_seek_size 8388608 -multiple_requests 1',
-               '--downloader-args', 'ffmpeg:-progress pipe:1 -nostats -preset ultrafast -crf 23 -maxrate:v 2500k -bufsize:v 5000k -b:a 128k',
+               '--downloader-args', 'ffmpeg:-progress pipe:1 -nostats -preset ultrafast',
                '-o', str(target)]
         if os.environ.get('TEST_BROKEN_FFMPEG') == '1':
             broken = root / 'libffmpeg_broken.so'
@@ -106,12 +106,4 @@ with tempfile.TemporaryDirectory() as temporary:
         assert duration, probe.stderr
         seconds = int(duration[1]) * 3600 + int(duration[2]) * 60 + float(duration[3])
         assert abs(seconds - 12) < 0.3, seconds
-        size = clip.stat().st_size
-        assert size < seconds * (2_500_000 + 128_000) / 8 + 1_250_000, size
-        old_cmd = cmd.copy()
-        old_cmd[old_cmd.index('ffmpeg:-progress pipe:1 -nostats -preset ultrafast -crf 23 -maxrate:v 2500k -bufsize:v 5000k -b:a 128k')] = 'ffmpeg:-progress pipe:1 -nostats -preset ultrafast'
-        old_cmd[old_cmd.index('-o') + 1] = str(root / 'old.%(ext)s')
-        subprocess.run(old_cmd, capture_output=True, text=True, check=True, timeout=90)
-        old_size = (root / 'old.mp4').stat().st_size
-        assert size < old_size * 0.8, (size, old_size)
-        print(f'clip: {seconds:.2f}s, H.264 + AAC, {len(bounded)} bounded requests; capped {size} bytes vs old {old_size} bytes')
+        print(f'clip: {seconds:.2f}s, H.264 + AAC, {len(bounded)} bounded HTTP requests')

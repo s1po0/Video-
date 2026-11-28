@@ -5,7 +5,7 @@ on:
     paths: ['android/**', 'public/**', 'capacitor.config.json', 'package*.json', '.github/workflows/android.yml']
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,10 +32,12 @@ jobs:
           export FFMPEG="$(python3 -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
           python3 tests/clip-range-integration.py
           python3 tests/subtitle-discovery-integration.py
+          python3 tests/lossless-clip-integration.py
           TEST_HTTP_10=1 python3 tests/clip-range-integration.py
           python3 -m pip install --target /tmp/yt-dlp-2025 yt-dlp==2025.11.12
           PYTHONPATH=/tmp/yt-dlp-2025 TEST_BROKEN_FFMPEG=1 python3 tests/clip-range-integration.py
           PYTHONPATH=/tmp/yt-dlp-2025 python3 tests/subtitle-discovery-integration.py
+          PYTHONPATH=/tmp/yt-dlp-2025 python3 tests/lossless-clip-integration.py
       - run: npx cap sync android
       - name: Build FFmpeg for bounded MP4 clip downloads
         run: |
@@ -61,27 +63,6 @@ jobs:
         run: |
           tool=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
           "$tool" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
-      - name: Stage signed APK for delivery
-        if: env.KEYSTORE_BASE64 != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          (async () => {
-            const file = fs.readFileSync('android/app/build/outputs/apk/release/app-release.apk');
-            for (let i = 0, offset = 0; offset < file.length; i++, offset += 20 * 1024 * 1024) {
-              const content = file.subarray(offset, offset + 20 * 1024 * 1024).toString('base64');
-              const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/git/blobs`, {
-                method: 'POST', headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' },
-                body: JSON.stringify({ content, encoding: 'base64' })
-              });
-              const data = await response.json();
-              if (!response.ok || !data.sha) throw new Error(`Could not stage APK: ${response.status} ${data.message || ''}`);
-              console.log(`::notice title=APK part ${i}::${data.sha}`);
-            }
-          })().catch(error => { console.error(error); process.exit(1); });
-          NODE
       - uses: actions/upload-artifact@v4
         with:
           name: slicevid-release-apk

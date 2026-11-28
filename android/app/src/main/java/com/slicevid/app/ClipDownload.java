@@ -16,16 +16,6 @@ final class ClipDownload {
         return "video".equals(kind) && "mp4".equals(format) && end > 0;
     }
 
-    static String mp4OutputArgs(String quality) {
-        int rate;
-        if ("360".equals(quality)) rate = 1000;
-        else if ("480".equals(quality)) rate = 1600;
-        else if ("1080".equals(quality)) rate = 5000;
-        else if ("best".equals(quality)) rate = 8000;
-        else rate = 2500;
-        return " -preset ultrafast -crf 23 -maxrate:v " + rate + "k -bufsize:v " + (rate * 2) + "k -b:a 128k";
-    }
-
     static boolean isUsable(File ffmpeg, File noBackupDir) {
         Process process = null;
         try {
