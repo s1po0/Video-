@@ -35,10 +35,8 @@ jobs:
       - name: Build FFmpeg for bounded MP4 clip downloads
         run: |
           if ! android/scripts/build-clip-ffmpeg.sh > /tmp/clip-ffmpeg-build.log 2>&1; then
-            tail -n 35 /tmp/clip-ffmpeg-build.log | while IFS= read -r line; do
-              line=${line//'%'/'%25'}; line=${line//$'\r'/'%0D'}
-              echo "::error::$line"
-            done
+            error=$(tail -n 50 /tmp/clip-ffmpeg-build.log | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+            echo "::error::$error"
             exit 1
           fi
       - name: Configure release key when available
