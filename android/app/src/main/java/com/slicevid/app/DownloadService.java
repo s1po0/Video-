@@ -27,6 +27,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.UUID;
+import java.util.Arrays;
 import kotlin.Unit;
 
 /** A visible foreground service owns the subprocess, not the Activity/WebView. */
@@ -107,7 +108,7 @@ public class DownloadService extends Service {
             // intermediate audio/video fragment merely because it ends in .mp4.
             File output = kind.equals("subtitle") ? outputs[0] : new File(dir, "download." + format);
             if (!output.isFile()) throw new Exception("فایلی تەواوی ڤیدیۆکە دروست نەبوو.");
-            if (format.equals("mp4")) validateMp4(output);
+            if (format.equals("mp4")) validateMp4(output, clipDuration);
             if (kind.equals("subtitle") && intent.getIntExtra("end", 0) > 0) {
                 long startMs = intent.getIntExtra("start", 0) * 1000L;
                 long endMs = intent.getIntExtra("end", 0) * 1000L;
@@ -152,6 +153,13 @@ public class DownloadService extends Service {
             int start = intent.getIntExtra("start", 0), end = intent.getIntExtra("end", 0);
             if (end > 0) {
                 r.addOption("--download-sections", "*" + start + "-" + end);
+                if (ClipDownload.useBoundedRequests(kind, format, end)) {
+                    File clipFfmpeg = new File(getApplicationInfo().nativeLibraryDir, "libffmpeg_slice.so");
+                    if (!clipFfmpeg.isFile()) throw new IllegalStateException("ئامێری دابەزاندنی بەش لە ئەپەکەدا نەدۆزرایەوە.");
+                    // The wrapper adds its own ffmpeg location; custom commands follow it.
+                    r.addCommands(Arrays.asList("--ffmpeg-location", clipFfmpeg.getAbsolutePath()));
+                    r.addOption("--downloader-args", ClipDownload.INPUT_ARGS);
+                }
                 r.addOption("--force-keyframes-at-cuts");
                 // FFmpeg handles sections; re-encoding keeps cuts aligned with subtitles.
                 r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? " -preset veryfast" : ""));
@@ -204,9 +212,9 @@ public class DownloadService extends Service {
         }
     }
 
-    private void validateMp4(File file) throws Exception {
+    private void validateMp4(File file, int clipDuration) throws Exception {
         MediaExtractor extractor = new MediaExtractor();
-        boolean video = false, audio = false;
+        boolean video = false, audio = false, shortTrack = false;
         try {
             extractor.setDataSource(file.getAbsolutePath());
             for (int i = 0; i < extractor.getTrackCount(); i++) {
@@ -214,8 +222,12 @@ public class DownloadService extends Service {
                 String mime = track.getString(MediaFormat.KEY_MIME);
                 if ("video/avc".equals(mime)) video = true;
                 if ("audio/mp4a-latm".equals(mime)) audio = true;
+                if (("video/avc".equals(mime) || "audio/mp4a-latm".equals(mime)) && track.containsKey(MediaFormat.KEY_DURATION)) {
+                    shortTrack |= ClipDownload.durationTooShort(track.getLong(MediaFormat.KEY_DURATION), clipDuration);
+                }
             }
         } finally { extractor.release(); }
+        if (shortTrack) throw new Exception("فایلەکە تەواو دابەنەزیوە؛ تکایە دووبارە هەوڵ بدەوە.");
         if (!video || !audio) throw new Exception("فایلی MP4 وێنە و دەنگی سازگاری تێدا نەدۆزرایەوە. تکایە کوالێتییەکی تر تاقی بکەرەوە.");
     }
 

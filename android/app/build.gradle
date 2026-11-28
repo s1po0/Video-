@@ -8,8 +8,8 @@ android {
         ndk { abiFilters 'arm64-v8a' }
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10
-        versionName "10.0"
+        versionCode 11
+        versionName "11.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -57,7 +57,15 @@ dependencies {
     implementation project(':capacitor-cordova-android-plugins')
 }
 
-apply from: 'capacitor.build.gradle'
+tasks.register('verifyClipFfmpeg') {
+    doLast {
+        def binary = file('src/main/jniLibs/arm64-v8a/libffmpeg_slice.so')
+        if (!binary.isFile()) throw new GradleException('Run android/scripts/build-clip-ffmpeg.sh before building the APK')
+    }
+}
+preBuild.dependsOn verifyClipFfmpeg
+
+apply from: 'capacitor.build.gradle' 
 
 try {
     def servicesJSON = file('google-services.json')
