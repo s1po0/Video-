@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat;
 import com.yausername.youtubedl_android.YoutubeDL;
 import com.yausername.youtubedl_android.YoutubeDLRequest;
 import com.yausername.ffmpeg.FFmpeg;
+import com.yausername.aria2c.Aria2c;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.OutputStream;
@@ -83,8 +84,14 @@ public class DownloadService extends Service {
             YoutubeDL.getInstance().init(getApplicationContext());
             FFmpeg.getInstance().init(getApplicationContext());
             final int clipDuration = intent.getIntExtra("end", 0) - intent.getIntExtra("start", 0);
+            boolean fast = DownloadSpeed.useParallel(kind, intent.getIntExtra("end", 0));
+            if (fast) {
+                try { Aria2c.getInstance().init(getApplicationContext()); }
+                catch (Exception ignored) { fast = false; }
+            }
+            final boolean parallelAvailable = fast;
             DownloadRetry.run(
-                alternate -> executeRequest(buildRequest(intent, dir, alternate), intent, kind, clipDuration),
+                alternate -> executeWithFallback(intent, dir, alternate, parallelAvailable, kind, clipDuration),
                 () -> {
                     state("running", "یوتوب ڕێگەی نەدا؛ نوێکردنەوە و هەوڵدانەوە...", -1);
                     YoutubeDL.getInstance().updateYoutubeDL(getApplicationContext(), YoutubeDL.UpdateChannel._STABLE);
@@ -126,11 +133,15 @@ public class DownloadService extends Service {
         stopSelf();
     }
 
-    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate) {
+    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate, boolean parallel) {
         String link = intent.getStringExtra("url"), kind = intent.getStringExtra("kind"), format = intent.getStringExtra("format");
         YoutubeDLRequest r = new YoutubeDLRequest(link);
         r.addOption("--no-playlist"); r.addOption("--no-warnings");
         r.addOption("--concurrent-fragments", "4");
+        if (parallel) {
+            r.addOption("--downloader", "libaria2c.so");
+            r.addOption("--downloader-args", "aria2c:-x 8 -s 8 -k 1M");
+        }
         r.addOption("--socket-timeout", "30"); r.addOption("--retries", "3"); r.addOption("--fragment-retries", "3");
         r.addOption("-o", new File(dir, "download.%(ext)s").getAbsolutePath());
         if (kind.equals("subtitle")) {
@@ -142,10 +153,7 @@ public class DownloadService extends Service {
             if (end > 0) {
                 r.addOption("--download-sections", "*" + start + "-" + end);
                 r.addOption("--force-keyframes-at-cuts");
-                // yt-dlp delegates sections to ffmpeg, whose ordinary progress
-                // is on stderr and is not forwarded by the Android wrapper.
-                // H.264 re-encoding is needed for precise clip/subtitle timing.
-                // A faster x264 preset reduces CPU time without changing codecs.
+                // FFmpeg handles sections; re-encoding keeps cuts aligned with subtitles.
                 r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? " -preset veryfast" : ""));
             }
             if (format.equals("mp3")) { r.addOption("-x"); r.addOption("--audio-format", "mp3"); }
@@ -153,10 +161,7 @@ public class DownloadService extends Service {
                 String quality = intent.getStringExtra("quality");
                 String cap = "best".equals(quality) ? "" : "[height<=" + quality + "]";
                 if (format.equals("mp4")) {
-                    // Do not choose AV1/VP9 just because it has an .mp4 container:
-                    // some Android players render only audio for those streams.
-                    // Prefer an actual H.264 video stream and AAC audio, or a
-                    // progressive MP4 containing both. Fail if none exists.
+                    // Some Android players cannot display AV1/VP9 inside MP4.
                     String h264 = "[ext=mp4][vcodec^=avc1]" + cap;
                     r.addOption("-f", "bv" + h264 + "+ba[ext=m4a][acodec^=mp4a]/b" + h264 + "[acodec^=mp4a]");
                     r.addOption("--merge-output-format", "mp4");
@@ -168,6 +173,13 @@ public class DownloadService extends Service {
         }
         if (alternate) r.addOption("--extractor-args", "youtube:player_client=web_safari");
         return r;
+    }
+
+    private void executeWithFallback(Intent intent, File dir, boolean alternate, boolean parallel, String kind, int clipDuration) throws Exception {
+        DownloadSpeed.run(parallel,
+            fast -> executeRequest(buildRequest(intent, dir, alternate, fast), intent, kind, clipDuration),
+            () -> state("running", "دابەزاندن بە ڕێگای ئاسایی دووبارە دەست پێ دەکات...", -1),
+            () -> clearJobFiles(dir));
     }
 
     private void executeRequest(YoutubeDLRequest request, Intent intent, String kind, int clipDuration) throws Exception {

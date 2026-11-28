@@ -12,6 +12,10 @@ public class DownloadProgressTest {
         assertEquals(42, DownloadProgress.percent("[download]  42.3% of 50MiB", -1, 0));
         assertEquals(99, DownloadProgress.percent("[download] 100% of 50MiB", 100, 0));
     }
+    @Test public void ariaProgress() {
+        assertEquals(42, DownloadProgress.percent("[#abc123 42MiB/100MiB(42%) CN:8 DL:4MiB]", -1, 0));
+        assertEquals(-1, DownloadProgress.percent("[#abc123 connecting]", -1, 0));
+    }
     @Test public void ffmpegClipTime() {
         assertEquals(50, DownloadProgress.percent("out_time_us=15000000", -1, 30));
         assertEquals(50, DownloadProgress.percent("out_time_ms=15000000", -1, 30));
