@@ -139,6 +139,18 @@ $('download').addEventListener('click', async () => {
     taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندن دەستی پێکرد...'; $('progress').removeAttribute('value'); status.scrollIntoView({behavior: 'smooth', block: 'center'}); updateStatus();
   } catch (err) { showError(err.message); }
 });
+function subtitleFallbacks(selected) {
+  const manual = [...new Set(manualSubtitleLanguages)].filter(code => code !== selected);
+  const preferred = ['en', 'en-US', 'en-GB', 'zh-Hans', 'zh', 'zh-CN'];
+  manual.sort((a, b) => {
+    const rank = code => { const i = preferred.indexOf(code); return i < 0 ? preferred.length : i; };
+    return rank(a) - rank(b);
+  });
+  const automatic = [...new Set(automaticSubtitleLanguages)].filter(code => code !== selected);
+  const originals = automatic.filter(code => code.endsWith('-orig')).slice(0, 2);
+  const otherAuto = automatic.filter(code => !code.endsWith('-orig') && !manual.includes(code)).slice(0, 2);
+  return { fallbackManual: manual.slice(0, 6), fallbackAutomatic: [...originals, ...otherAuto] };
+}
 $('subtitle').addEventListener('click', async () => {
   if (!$('languages').value) return;
   error.hidden = true;
@@ -146,7 +158,7 @@ $('subtitle').addEventListener('click', async () => {
     const range = selectedRange();
     await native.subtitles({ url: currentUrl, ...range, language: $('languages').value, format: $('subformat').value, subtitleClient,
       tryAutomatic: manualSubtitleLanguages.includes($('languages').value) && automaticSubtitleLanguages.includes($('languages').value),
-      fallbackOriginals: automaticSubtitleLanguages.filter(code => code.endsWith('-orig') && code !== $('languages').value).slice(0, 2) });
+      ...subtitleFallbacks($('languages').value) });
     taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندنی ژێرنووس...'; $('progress').removeAttribute('value'); updateStatus();
   } catch (err) { showError(err.message); }
 });

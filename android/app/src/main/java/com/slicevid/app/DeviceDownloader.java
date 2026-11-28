@@ -251,14 +251,17 @@ public class DeviceDownloader extends Plugin {
             intent.putExtra("url", link); intent.putExtra("kind", subtitles ? "subtitle" : "video");
             intent.putExtra("format", format); intent.putExtra("quality", quality); intent.putExtra("language", language); intent.putExtra("subtitleClient", subtitleClient);
             intent.putExtra("tryAutomatic", subtitles && call.getBoolean("tryAutomatic", false));
-            JSArray alternatives = call.getArray("fallbackOriginals", new JSArray());
-            if (alternatives.length() > 2) throw new Exception("هەڵبژاردنەکە دروست نییە.");
-            String[] originals = new String[alternatives.length()];
-            for (int i = 0; i < originals.length; i++) {
-                originals[i] = alternatives.getString(i);
-                if (!originals[i].matches("[A-Za-z0-9_-]{1,30}-orig")) throw new Exception("هەڵبژاردنەکە دروست نییە.");
+            for (String key : new String[]{"fallbackManual", "fallbackAutomatic"}) {
+                JSArray alternatives = call.getArray(key, new JSArray());
+                int limit = key.equals("fallbackManual") ? 6 : 4;
+                if (alternatives.length() > limit) throw new Exception("هەڵبژاردنەکە دروست نییە.");
+                String[] languages = new String[alternatives.length()];
+                for (int i = 0; i < languages.length; i++) {
+                    languages[i] = alternatives.getString(i);
+                    if (!languages[i].matches("[A-Za-z0-9_-]{1,35}")) throw new Exception("هەڵبژاردنەکە دروست نییە.");
+                }
+                intent.putExtra(key, languages);
             }
-            intent.putExtra("fallbackOriginals", originals);
             intent.putExtra("start", (int) start); intent.putExtra("end", (int) end);
             intent.putExtra("folder", getContext().getSharedPreferences("download_settings", 0).getString("folder", ""));
             getContext().getSharedPreferences("download_state", 0).edit().putString("state", "queued").putString("message", "ئامادەکردنی دابەزاندن...").putLong("queued_at", System.currentTimeMillis()).putInt("percent", -1).apply();

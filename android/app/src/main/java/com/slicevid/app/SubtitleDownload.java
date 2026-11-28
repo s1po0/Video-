@@ -9,7 +9,7 @@ final class SubtitleDownload {
         Result(T value, String language) { this.value = value; this.language = language; }
     }
 
-    static <T> Result<T> run(String language, boolean automaticAvailable, String[] originals,
+    static <T> Result<T> run(String language, boolean automaticAvailable, String[] manual, String[] automatic,
                               Attempt<T> attempt, Runnable notice, Action clean) throws Exception {
         SubtitleTrimmer.NoCuesException missing;
         try { return new Result<>(attempt.run(language, false), language); }
@@ -19,10 +19,16 @@ final class SubtitleDownload {
             try { return new Result<>(attempt.run(language, true), language); }
             catch (SubtitleTrimmer.NoCuesException error) { missing = error; }
         }
-        if (originals != null) for (String original : originals) {
-            if (original == null || original.equals(language)) continue;
+        if (manual != null) for (String alternative : manual) {
+            if (alternative == null || alternative.equals(language)) continue;
             notice.run(); clean.run();
-            try { return new Result<>(attempt.run(original, true), original); }
+            try { return new Result<>(attempt.run(alternative, false), alternative); }
+            catch (SubtitleTrimmer.NoCuesException error) { missing = error; }
+        }
+        if (automatic != null) for (String alternative : automatic) {
+            if (alternative == null || alternative.equals(language)) continue;
+            notice.run(); clean.run();
+            try { return new Result<>(attempt.run(alternative, true), alternative); }
             catch (SubtitleTrimmer.NoCuesException error) { missing = error; }
         }
         throw missing;

@@ -101,11 +101,12 @@ public class DownloadService extends Service {
             String subtitleLanguage = intent.getStringExtra("language");
             if (kind.equals("subtitle")) {
                 boolean tryAutomatic = intent.getBooleanExtra("tryAutomatic", false) && intent.getIntExtra("end", 0) > 0;
-                String[] originals = intent.getIntExtra("end", 0) > 0 ? intent.getStringArrayExtra("fallbackOriginals") : null;
-                SubtitleDownload.Result<File> result = SubtitleDownload.run(subtitleLanguage, tryAutomatic, originals, (language, automaticOnly) -> {
+                String[] manual = intent.getIntExtra("end", 0) > 0 ? intent.getStringArrayExtra("fallbackManual") : null;
+                String[] automatic = intent.getIntExtra("end", 0) > 0 ? intent.getStringArrayExtra("fallbackAutomatic") : null;
+                SubtitleDownload.Result<File> result = SubtitleDownload.run(subtitleLanguage, tryAutomatic, manual, automatic, (language, automaticOnly) -> {
                     downloadWithRetry(intent, dir, parallelAvailable, boundedAvailable, kind, clipDuration, automaticOnly, language);
                     return prepareOutput(intent, dir, kind, format, clipDuration);
-                }, () -> state("running", "ژێرنووسی خۆکار تاقی دەکرێتەوە...", -1), () -> clearJobFiles(dir));
+                }, () -> state("running", "ژێرنووسێکی تر تاقی دەکرێتەوە...", -1), () -> clearJobFiles(dir));
                 output = result.value;
                 subtitleLanguage = result.language;
             } else {
