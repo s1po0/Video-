@@ -46,7 +46,8 @@ jobs=${BUILD_JOBS:-4}
     --sysroot="$toolchain/sysroot" --pkg-config-flags=--static \
     --extra-cflags="-I$prefix/include" --extra-ldflags="-L$prefix/lib -Wl,-z,max-page-size=16384" \
     --extra-libs='-ldl -lm' --enable-openssl --enable-libx264 --enable-gpl --enable-version3 \
-    --disable-shared --enable-static --disable-doc --disable-debug --disable-ffplay --disable-ffprobe
+    --disable-shared --enable-static --disable-doc --disable-debug --disable-ffplay --disable-ffprobe \
+    --disable-indevs --disable-outdevs --disable-mediacodec --disable-jni
   make -j"$jobs" ffmpeg
   mkdir -p "$root/android/app/src/main/jniLibs/arm64-v8a"
   cp ffmpeg "$root/android/app/src/main/jniLibs/arm64-v8a/libffmpeg_slice.so"

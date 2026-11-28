@@ -91,8 +91,14 @@ public class DownloadService extends Service {
                 catch (Exception ignored) { fast = false; }
             }
             final boolean parallelAvailable = fast;
+            boolean useFastClip = ClipDownload.useBoundedRequests(kind, format, intent.getIntExtra("end", 0));
+            if (useFastClip && !ClipDownload.isUsable(new File(getApplicationInfo().nativeLibraryDir, "libffmpeg_slice.so"), getNoBackupFilesDir())) {
+                useFastClip = false;
+                state("running", "ڕێگای خێرا بەردەست نییە؛ دابەزاندن بە ڕێگای ئاسایی...", -1);
+            }
+            final boolean boundedAvailable = useFastClip;
             DownloadRetry.run(
-                alternate -> executeWithFallback(intent, dir, alternate, parallelAvailable, kind, clipDuration),
+                alternate -> executeWithFallback(intent, dir, alternate, parallelAvailable, boundedAvailable, kind, clipDuration),
                 () -> {
                     state("running", "یوتوب ڕێگەی نەدا؛ نوێکردنەوە و هەوڵدانەوە...", -1);
                     YoutubeDL.getInstance().updateYoutubeDL(getApplicationContext(), YoutubeDL.UpdateChannel._STABLE);
@@ -134,7 +140,7 @@ public class DownloadService extends Service {
         stopSelf();
     }
 
-    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate, boolean parallel) {
+    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate, boolean parallel, boolean bounded) {
         String link = intent.getStringExtra("url"), kind = intent.getStringExtra("kind"), format = intent.getStringExtra("format");
         YoutubeDLRequest r = new YoutubeDLRequest(link);
         r.addOption("--no-playlist"); r.addOption("--no-warnings");
@@ -153,7 +159,7 @@ public class DownloadService extends Service {
             int start = intent.getIntExtra("start", 0), end = intent.getIntExtra("end", 0);
             if (end > 0) {
                 r.addOption("--download-sections", "*" + start + "-" + end);
-                if (ClipDownload.useBoundedRequests(kind, format, end)) {
+                if (bounded && ClipDownload.useBoundedRequests(kind, format, end)) {
                     File clipFfmpeg = new File(getApplicationInfo().nativeLibraryDir, "libffmpeg_slice.so");
                     if (!clipFfmpeg.isFile()) throw new IllegalStateException("ئامێری دابەزاندنی بەش لە ئەپەکەدا نەدۆزرایەوە.");
                     // The wrapper adds its own ffmpeg location; custom commands follow it.
@@ -183,10 +189,13 @@ public class DownloadService extends Service {
         return r;
     }
 
-    private void executeWithFallback(Intent intent, File dir, boolean alternate, boolean parallel, String kind, int clipDuration) throws Exception {
-        DownloadSpeed.run(parallel,
-            fast -> executeRequest(buildRequest(intent, dir, alternate, fast), intent, kind, clipDuration),
-            () -> state("running", "دابەزاندن بە ڕێگای ئاسایی دووبارە دەست پێ دەکات...", -1),
+    private void executeWithFallback(Intent intent, File dir, boolean alternate, boolean parallel, boolean bounded, String kind, int clipDuration) throws Exception {
+        ClipDownload.run(bounded, useBounded ->
+            DownloadSpeed.run(parallel,
+                fast -> executeRequest(buildRequest(intent, dir, alternate, fast, useBounded), intent, kind, clipDuration),
+                () -> state("running", "دابەزاندن بە ڕێگای ئاسایی دووبارە دەست پێ دەکات...", -1),
+                () -> clearJobFiles(dir)),
+            () -> state("running", "ڕێگای خێرا کارینەکرد؛ بە ڕێگای ئاسایی هەوڵ دەدرێتەوە...", -1),
             () -> clearJobFiles(dir));
     }
 

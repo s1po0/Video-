@@ -2,6 +2,7 @@
 
 Requires yt-dlp and FFmpeg 9 with libx264. Set FFMPEG to the executable path.
 """
+import json
 import http.server
 import os
 from pathlib import Path
@@ -21,6 +22,8 @@ with tempfile.TemporaryDirectory() as temporary:
                     '-preset', 'ultrafast', '-b:v', '6M', '-c:a', 'aac',
                     '-movflags', '+faststart', str(source)], check=True)
 
+    for target, mapping in [('video.mp4', '0:v:0'), ('audio.m4a', '0:a:0')]:
+        subprocess.run([ffmpeg, '-v', 'error', '-y', '-i', str(source), '-map', mapping, '-c', 'copy', str(root / target)], check=True)
     class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
         daemon_threads = True
 
@@ -29,7 +32,8 @@ with tempfile.TemporaryDirectory() as temporary:
             pass
 
         def do_GET(self):
-            size = source.stat().st_size
+            mediafile = root / self.path.lstrip("/")
+            size = mediafile.stat().st_size
             match = re.fullmatch(r'bytes=(\d+)-(\d*)', self.headers.get('Range', ''))
             start = int(match[1]) if match else 0
             end = min(int(match[2]) if match and match[2] else size - 1, size - 1)
@@ -45,7 +49,7 @@ with tempfile.TemporaryDirectory() as temporary:
                 self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
             self.end_headers()
             try:
-                with source.open('rb') as media:
+                with mediafile.open('rb') as media:
                     media.seek(start)
                     remaining = end - start + 1
                     while remaining:
@@ -60,11 +64,23 @@ with tempfile.TemporaryDirectory() as temporary:
         threading.Thread(target=server.serve_forever, daemon=True).start()
         target = root / 'clip.%(ext)s'
         url = f'http://127.0.0.1:{server.server_port}/source.mp4'
-        cmd = ['python3', '-m', 'yt_dlp', '--no-playlist', '--ffmpeg-location', ffmpeg,
+        info = {'id':'test', 'title':'test', 'duration':22, 'extractor':'generic', 'extractor_key':'Generic',
+                'formats': [{'format_id':'137', 'ext':'mp4', 'protocol':'http', 'vcodec':'avc1.64001f', 'acodec':'none', 'height':720, 'url':url.replace('source.mp4','video.mp4')}, {'format_id':'140', 'ext':'m4a', 'protocol':'http', 'vcodec':'none', 'acodec':'mp4a.40.2','url':url.replace('source.mp4','audio.m4a')}]}
+        infofile=root/'info.json'; infofile.write_text(json.dumps(info))
+        cmd = ['python3', '-m', 'yt_dlp', '-f','137+140', '--load-info-json', str(infofile), '--no-playlist', '--ffmpeg-location', ffmpeg,
                '--download-sections', '*3-15', '--force-keyframes-at-cuts',
                '--downloader-args', 'ffmpeg_i:-request_size 8388608 -short_seek_size 8388608',
                '--downloader-args', 'ffmpeg:-progress pipe:1 -nostats -preset veryfast',
-               '-o', str(target), url]
+               '-o', str(target)]
+        if os.environ.get('TEST_BROKEN_FFMPEG') == '1':
+            broken = root / 'libffmpeg_broken.so'
+            broken.write_text('#!/bin/sh\necho simulated-linker-failure >&2\nexit 127\n')
+            broken.chmod(0o755)
+            bad_cmd = cmd.copy()
+            bad_cmd[bad_cmd.index('--ffmpeg-location') + 1] = str(broken)
+            broken_result = subprocess.run(bad_cmd, capture_output=True, text=True, timeout=90)
+            assert broken_result.returncode != 0
+            assert "'NoneType' object has no attribute 'decode'" in broken_result.stderr, broken_result.stderr
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
         if result.returncode:
             raise AssertionError(result.stderr + '\n' + result.stdout)
