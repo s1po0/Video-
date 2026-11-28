@@ -30,3 +30,5 @@ Subtitle discovery requests manual and automatic tracks, including available tra
 The app stages downloads in its cache and copies the finished file to the chosen folder; during saving, both copies can briefly occupy storage. Failed requests or retries can use extra network data.
 
 If an MP4 clip contains a track substantially shorter than requested, the app retries once with the version 16 range settings after removing the first attempt. If still short, the message identifies the track and its reported and requested durations. A retry can consume extra data. The duration check relies on Android MediaExtractor metadata and may not identify the underlying cause.
+
+When both manual and automatic tracks exist for the selected language, yt-dlp chooses the manual track first. If that track contains no cues in the selected clip, the app retries once with the automatic track and trims it to the same interval. If neither has cues there, the error reports the time extent of the retrieved cues; an extent does not imply uninterrupted caption coverage. No captions can be generated when the source does not provide them.

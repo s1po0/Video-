@@ -6,6 +6,9 @@ import java.util.regex.Pattern;
 
 /** Clips SRT/WebVTT cues to a source time range and rebases them to clip time. */
 final class SubtitleTrimmer {
+    static final class NoCuesException extends IllegalArgumentException {
+        NoCuesException(String message) { super(message); }
+    }
     private static final String TIME = "(?:(\\d+):)?(\\d{2}):(\\d{2})[.,](\\d{3})";
     private static final Pattern CUE = Pattern.compile("^\\s*" + TIME + "\\s+-->\\s+" + TIME + "(.*)$");
     private static final Pattern INLINE_VTT_TIME = Pattern.compile("<(?:(?:\\d+):)?\\d{2}:\\d{2}\\.\\d{3}>");
@@ -42,7 +45,8 @@ final class SubtitleTrimmer {
             }
             output.append('\n');
         }
-        int count = 0;
+        int count = 0, parsed = 0;
+        long first = Long.MAX_VALUE, last = 0;
         for (int n = vtt ? 1 : 0; n < blocks.length; n++) {
             String block = blocks[n].trim();
             if (block.isEmpty()) continue;
@@ -59,6 +63,7 @@ final class SubtitleTrimmer {
             }
             if (cue == null || cueLine + 1 >= lines.length) continue;
             long from = millis(cue, 1), to = millis(cue, 5);
+            parsed++; first = Math.min(first, from); last = Math.max(last, to);
             long clippedStart = Math.max(from, startMs), clippedEnd = Math.min(to, endMs);
             if (clippedEnd <= clippedStart) continue;
             count++;
@@ -73,7 +78,11 @@ final class SubtitleTrimmer {
             }
             output.append('\n');
         }
-        if (count == 0) throw new IllegalArgumentException("لە بەشە هەڵبژێردراوەکەدا ژێرنووس نەدۆزرایەوە.");
+        if (count == 0) {
+            String detail = parsed == 0 ? "هیچ کاتێکی ژێرنووس نەخوێندرایەوە." :
+                "کاتی ژێرنووسی وەرگیراو: " + timestamp(first, true) + " – " + timestamp(last, true);
+            throw new NoCuesException("لە بەشە هەڵبژێردراوەکەدا ژێرنووس نەدۆزرایەوە. " + detail);
+        }
         return output.toString();
     }
 

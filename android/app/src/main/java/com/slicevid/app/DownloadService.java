@@ -97,33 +97,18 @@ public class DownloadService extends Service {
                 state("running", "ڕێگای خێرا بەردەست نییە؛ دابەزاندن بە ڕێگای ئاسایی...", -1);
             }
             final boolean boundedAvailable = useFastClip;
-            DownloadRetry.run(
-                alternate -> executeWithFallback(intent, dir, alternate, parallelAvailable, boundedAvailable, kind, clipDuration),
-                () -> {
-                    state("running", "یوتوب ڕێگەی نەدا؛ نوێکردنەوە و هەوڵدانەوە...", -1);
-                    YoutubeDL.getInstance().updateYoutubeDL(getApplicationContext(), YoutubeDL.UpdateChannel._STABLE);
-                },
-                () -> clearJobFiles(dir),
-                () -> state("running", "ڕێگایەکی تری دابەزاندن تاقی دەکرێتەوە...", -1)
-            );
-
-            state("running", "پاشەکەوتکردنی فایل...", -1);
-            File[] outputs = dir.listFiles((d, name) -> name.endsWith("." + format));
-            if (outputs == null || outputs.length == 0) throw new Exception("فایلەکە بەردەست نییە یان دروست نەبوو.");
-            // yt-dlp's final media file has this exact name. Never select an
-            // intermediate audio/video fragment merely because it ends in .mp4.
-            File output = kind.equals("subtitle") ? outputs[0] : new File(dir, "download." + format);
-            if (!output.isFile()) throw new Exception("فایلی تەواوی ڤیدیۆکە دروست نەبوو.");
-            if (format.equals("mp4")) validateMp4(output, clipDuration);
-            if (kind.equals("subtitle") && intent.getIntExtra("end", 0) > 0) {
-                long startMs = intent.getIntExtra("start", 0) * 1000L;
-                long endMs = intent.getIntExtra("end", 0) * 1000L;
-                if (output.length() > 30L * 1024 * 1024) throw new Exception("فایلی ژێرنووس زۆر گەورەیە.");
-                String text = new String(Files.readAllBytes(output.toPath()), StandardCharsets.UTF_8);
-                String trimmed = SubtitleTrimmer.trim(text, format, startMs, endMs);
-                output = new File(dir, "section." + format);
-                Files.write(output.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
+            File output;
+            if (kind.equals("subtitle")) {
+                boolean tryAutomatic = intent.getBooleanExtra("tryAutomatic", false) && intent.getIntExtra("end", 0) > 0;
+                output = SubtitleDownload.run(tryAutomatic, automaticOnly -> {
+                    downloadWithRetry(intent, dir, parallelAvailable, boundedAvailable, kind, clipDuration, automaticOnly);
+                    return prepareOutput(intent, dir, kind, format, clipDuration);
+                }, () -> state("running", "ژێرنووسی خۆکار تاقی دەکرێتەوە...", -1), () -> clearJobFiles(dir));
+            } else {
+                downloadWithRetry(intent, dir, parallelAvailable, boundedAvailable, kind, clipDuration, false);
+                output = prepareOutput(intent, dir, kind, format, clipDuration);
             }
+            state("running", "پاشەکەوتکردنی فایل...", -1);
             publish(output, format, intent.getStringExtra("folder"));
             resultMessage = "تەواو بوو ✓ فایلەکە لە شوێنی هەڵبژێردراو پاشەکەوت کرا.";
         } catch (Exception e) {
@@ -140,7 +125,38 @@ public class DownloadService extends Service {
         stopSelf();
     }
 
-    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate, boolean parallel, ClipDownload.Mode mode) {
+    private void downloadWithRetry(Intent intent, File dir, boolean parallel, boolean bounded, String kind, int clipDuration, boolean automaticOnly) throws Exception {
+        DownloadRetry.run(
+            alternate -> executeWithFallback(intent, dir, alternate, parallel, bounded, kind, clipDuration, automaticOnly),
+            () -> {
+                state("running", "یوتوب ڕێگەی نەدا؛ نوێکردنەوە و هەوڵدانەوە...", -1);
+                YoutubeDL.getInstance().updateYoutubeDL(getApplicationContext(), YoutubeDL.UpdateChannel._STABLE);
+            },
+            () -> clearJobFiles(dir),
+            () -> state("running", "ڕێگایەکی تری دابەزاندن تاقی دەکرێتەوە...", -1)
+        );
+    }
+
+    private File prepareOutput(Intent intent, File dir, String kind, String format, int clipDuration) throws Exception {
+        File[] outputs = dir.listFiles((d, name) -> name.endsWith("." + format));
+        if (outputs == null || outputs.length == 0) throw new Exception("فایلەکە بەردەست نییە یان دروست نەبوو.");
+        // The final video has an exact name; other MP4s may be intermediates.
+        File output = kind.equals("subtitle") ? outputs[0] : new File(dir, "download." + format);
+        if (!output.isFile()) throw new Exception("فایلی تەواوی ڤیدیۆکە دروست نەبوو.");
+        if (format.equals("mp4")) validateMp4(output, clipDuration);
+        if (kind.equals("subtitle") && intent.getIntExtra("end", 0) > 0) {
+            long startMs = intent.getIntExtra("start", 0) * 1000L;
+            long endMs = intent.getIntExtra("end", 0) * 1000L;
+            if (output.length() > 30L * 1024 * 1024) throw new Exception("فایلی ژێرنووس زۆر گەورەیە.");
+            String text = new String(Files.readAllBytes(output.toPath()), StandardCharsets.UTF_8);
+            String trimmed = SubtitleTrimmer.trim(text, format, startMs, endMs);
+            output = new File(dir, "section." + format);
+            Files.write(output.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
+        }
+        return output;
+    }
+
+    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate, boolean parallel, ClipDownload.Mode mode, boolean automaticOnly) {
         String link = intent.getStringExtra("url"), kind = intent.getStringExtra("kind"), format = intent.getStringExtra("format");
         YoutubeDLRequest r = new YoutubeDLRequest(link);
         r.addOption("--no-playlist"); r.addOption("--no-warnings");
@@ -152,7 +168,9 @@ public class DownloadService extends Service {
         r.addOption("--socket-timeout", "30"); r.addOption("--retries", "3"); r.addOption("--fragment-retries", "3");
         r.addOption("-o", new File(dir, "download.%(ext)s").getAbsolutePath());
         if (kind.equals("subtitle")) {
-            r.addOption("--skip-download"); r.addOption("--write-subs"); r.addOption("--write-auto-subs");
+            r.addOption("--skip-download");
+            if (!automaticOnly) r.addOption("--write-subs");
+            r.addOption("--write-auto-subs");
             r.addOption("--sub-langs", intent.getStringExtra("language"));
             r.addOption("--sub-format", "vtt/best"); r.addOption("--convert-subs", format);
         } else {
@@ -190,11 +208,11 @@ public class DownloadService extends Service {
         return r;
     }
 
-    private void executeWithFallback(Intent intent, File dir, boolean alternate, boolean parallel, boolean bounded, String kind, int clipDuration) throws Exception {
+    private void executeWithFallback(Intent intent, File dir, boolean alternate, boolean parallel, boolean bounded, String kind, int clipDuration, boolean automaticOnly) throws Exception {
         ClipDownload.run(bounded, mode ->
             DownloadSpeed.run(parallel,
                 fast -> {
-                    executeRequest(buildRequest(intent, dir, alternate, fast, mode), intent, kind, clipDuration, mode != ClipDownload.Mode.LEGACY);
+                    executeRequest(buildRequest(intent, dir, alternate, fast, mode, automaticOnly), intent, kind, clipDuration, mode != ClipDownload.Mode.LEGACY);
                     if (ClipDownload.useBoundedRequests(kind, intent.getStringExtra("format"), intent.getIntExtra("end", 0))) {
                         File output = new File(dir, "download.mp4");
                         if (!output.isFile()) throw new Exception("فایلی تەواوی ڤیدیۆکە دروست نەبوو.");

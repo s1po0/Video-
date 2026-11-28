@@ -1,7 +1,7 @@
 'use strict';
 const $ = (id) => document.getElementById(id);
 const native = window.Capacitor?.Plugins?.DeviceDownloader;
-let currentUrl = '', subtitleClient = 'default', duration = 0, clipMode = false, loading = false, taskState = 'idle', lastState = 'idle';
+let currentUrl = '', subtitleClient = 'default', manualSubtitleLanguages = [], automaticSubtitleLanguages = [], duration = 0, clipMode = false, loading = false, taskState = 'idle', lastState = 'idle';
 const error = $('error'), status = $('status'), statusText = $('status-text');
 
 function showScreen(name) {
@@ -42,6 +42,7 @@ function renderClip() {
   updateRangeSummary();
 }
 function updateRangeSummary() {
+  $('subtitle-range').dir = clipMode ? 'ltr' : 'auto';
   $('subtitle-range').textContent = clipMode ? time(Number($('start-range').value)) + ' - ' + time(Number($('end-range').value)) : 'هەموو ڤیدیۆکە';
 }
 function mode(clip) {
@@ -108,7 +109,9 @@ $('form').addEventListener('submit', async (e) => {
   loading = true; buttons(); status.hidden = false; status.classList.remove('failed'); $('background-hint').hidden = true; statusText.textContent = 'ئامادەکردنی ڤیدیۆ... تکایە چاوەڕێ بکە.'; $('progress').removeAttribute('value');
   try {
     const video = await native.info({ url });
-    currentUrl = url; subtitleClient = video.subtitleClient || 'default'; duration = Math.floor(video.duration || 0);
+    currentUrl = url; subtitleClient = video.subtitleClient || 'default';
+    manualSubtitleLanguages = video.manualSubtitleLanguages || []; automaticSubtitleLanguages = video.automaticSubtitleLanguages || [];
+    duration = Math.floor(video.duration || 0);
     $('title').textContent = video.title; $('channel').textContent = video.channel; $('thumb').src = video.thumbnail;
     const options = $('languages'); options.replaceChildren();
     (video.subtitles || []).forEach(code => { const o = document.createElement('option'); o.value = code; o.textContent = code; options.appendChild(o); });
@@ -141,7 +144,8 @@ $('subtitle').addEventListener('click', async () => {
   error.hidden = true;
   try {
     const range = selectedRange();
-    await native.subtitles({ url: currentUrl, ...range, language: $('languages').value, format: $('subformat').value, subtitleClient });
+    await native.subtitles({ url: currentUrl, ...range, language: $('languages').value, format: $('subformat').value, subtitleClient,
+      tryAutomatic: manualSubtitleLanguages.includes($('languages').value) && automaticSubtitleLanguages.includes($('languages').value) });
     taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندنی ژێرنووس...'; $('progress').removeAttribute('value'); updateStatus();
   } catch (err) { showError(err.message); }
 });

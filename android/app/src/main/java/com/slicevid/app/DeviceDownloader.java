@@ -75,9 +75,9 @@ public class DeviceDownloader extends Plugin {
         return r;
     }
 
-    private java.util.LinkedHashSet<String> subtitleLanguages(JSONObject raw) {
+    private java.util.LinkedHashSet<String> subtitleLanguages(JSONObject raw, String... types) {
         java.util.LinkedHashSet<String> langs = new java.util.LinkedHashSet<>();
-        for (String type : new String[]{"subtitles", "automatic_captions"}) {
+        for (String type : types) {
             JSONObject tracks = raw.optJSONObject(type);
             if (tracks != null) {
                 Iterator<String> keys = tracks.keys();
@@ -88,6 +88,12 @@ public class DeviceDownloader extends Plugin {
             }
         }
         return langs;
+    }
+
+    private JSArray subtitleArray(JSONObject raw, String... types) {
+        JSArray result = new JSArray();
+        for (String lang : subtitleLanguages(raw, types)) result.put(lang);
+        return result;
     }
 
     @PluginMethod
@@ -112,7 +118,7 @@ public class DeviceDownloader extends Plugin {
                 }
                 SubtitleDiscovery.Result<JSONObject> captions = SubtitleDiscovery.find(raw,
                     alternate -> new JSONObject(YoutubeDL.getInstance().execute(infoRequest(link, alternate)).getOut()),
-                    candidate -> !subtitleLanguages(candidate).isEmpty(),
+                    candidate -> !subtitleLanguages(candidate, "subtitles", "automatic_captions").isEmpty(),
                     () -> {
                         SharedPreferences prefs = getContext().getSharedPreferences("extractor", 0);
                         if (System.currentTimeMillis() - prefs.getLong("attempted", 0) < 86400000L) return false;
@@ -125,9 +131,9 @@ public class DeviceDownloader extends Plugin {
                 out.put("channel", raw.optString("uploader", ""));
                 out.put("duration", raw.optDouble("duration", 0));
                 out.put("thumbnail", raw.optString("thumbnail", ""));
-                JSArray subs = new JSArray();
-                for (String lang : subtitleLanguages(captions.value)) subs.put(lang);
-                out.put("subtitles", subs);
+                out.put("subtitles", subtitleArray(captions.value, "subtitles", "automatic_captions"));
+                out.put("manualSubtitleLanguages", subtitleArray(captions.value, "subtitles"));
+                out.put("automaticSubtitleLanguages", subtitleArray(captions.value, "automatic_captions"));
                 out.put("subtitleClient", captions.alternate ? "web_safari" : "default");
                 call.resolve(out);
             } catch (Exception e) { fail(call, e); }
@@ -244,6 +250,7 @@ public class DeviceDownloader extends Plugin {
             Intent intent = new Intent(getContext(), DownloadService.class);
             intent.putExtra("url", link); intent.putExtra("kind", subtitles ? "subtitle" : "video");
             intent.putExtra("format", format); intent.putExtra("quality", quality); intent.putExtra("language", language); intent.putExtra("subtitleClient", subtitleClient);
+            intent.putExtra("tryAutomatic", subtitles && call.getBoolean("tryAutomatic", false));
             intent.putExtra("start", (int) start); intent.putExtra("end", (int) end);
             intent.putExtra("folder", getContext().getSharedPreferences("download_settings", 0).getString("folder", ""));
             getContext().getSharedPreferences("download_state", 0).edit().putString("state", "queued").putString("message", "ئامادەکردنی دابەزاندن...").putLong("queued_at", System.currentTimeMillis()).putInt("percent", -1).apply();

@@ -21,7 +21,7 @@ for (const width of [320, 390, 600]) {
     window.Capacitor={Plugins:{DeviceDownloader:{
       getFolder: async()=>({label:'Downloads / SliceVid'}), listDownloads:async()=>({files:[{name:'SliceVid-123.mp4',uri:'content://media/123',mime:'video/mp4'}]}),
       status:async()=>window.state, chooseFolder:async()=>({label:'Custom / Videos'}),
-      info:async()=>({title:'A video title with a long unbroken name testtesttesttesttesttest', channel:'Example', duration:5400, thumbnail:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==', subtitles:['en','ku'], subtitleClient:'web_safari'}),
+      info:async()=>({title:'A video title with a long unbroken name testtesttesttesttesttest', channel:'Example', duration:5400, thumbnail:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==', subtitles:['en','ku'], manualSubtitleLanguages:['en'], automaticSubtitleLanguages:['en','ku'], subtitleClient:'web_safari'}),
       download:async payload=>window.calls.push(['video',payload]), subtitles:async payload=>window.calls.push(['subs',payload]), openDownload:async payload=>window.calls.push(['open',payload])
     }}};
   });
@@ -42,9 +42,10 @@ for (const width of [320, 390, 600]) {
   let req=await page.evaluate(()=>window.calls.find(x=>x[0]==='video')[1]); assert.equal(req.start,10); assert.equal(req.end,90);
   await page.click('[data-screen=subs]');
   assert.match(await page.locator('#subtitle-range').innerText(),/00:10.*01:30/);
+  assert.equal(await page.locator('#subtitle-range').getAttribute('dir'), 'ltr');
   await page.selectOption('#languages','ku'); await page.selectOption('#languages','en'); await page.selectOption('#subformat','vtt'); await page.selectOption('#subformat','srt');
   await page.click('#subtitle'); await page.waitForFunction(()=>window.calls.some(x=>x[0]==='subs'));
-  req=await page.evaluate(()=>window.calls.find(x=>x[0]==='subs')[1]); assert.equal(req.start,10);assert.equal(req.end,90); assert.equal(req.subtitleClient, 'web_safari');
+  req=await page.evaluate(()=>window.calls.find(x=>x[0]==='subs')[1]); assert.equal(req.start,10);assert.equal(req.end,90); assert.equal(req.subtitleClient, 'web_safari'); assert.equal(req.tryAutomatic, true);
   await page.click('#edit-range'); assert.equal(await page.locator('#screen-edit').isVisible(),true);
   await page.screenshot({path:`tmp/screenshots/edit-${width}.png`,fullPage:true});
   await page.click('[data-screen=files]'); await page.locator('.download-item').click();

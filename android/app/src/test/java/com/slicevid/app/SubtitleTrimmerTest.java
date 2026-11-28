@@ -44,4 +44,20 @@ public class SubtitleTrimmerTest {
     @Test(expected = IllegalArgumentException.class) public void noCuesDoesNotProduceMisleadingEmptyFile() {
         SubtitleTrimmer.trim("1\n00:00:01,000 --> 00:00:02,000\nHello\n", "srt", 5000, 6000);
     }
+    @Test public void clipsTwentyTwoHourArabicSubtitleCorrectly() {
+        String srt = "1\n22:20:02,000 --> 22:20:06,000\nمرحبا\n\n" +
+            "2\n22:33:07,000 --> 22:33:10,000\nنهاية\n\n";
+        String result = SubtitleTrimmer.trim(srt, "srt", (22 * 3600L + 20 * 60 + 3) * 1000, (22 * 3600L + 33 * 60 + 8) * 1000);
+        assertTrue(result.contains("00:00:00,000 --> 00:00:03,000\nمرحبا"));
+        assertTrue(result.contains("00:13:04,000 --> 00:13:05,000\nنهاية"));
+    }
+    @Test public void emptyRangeIncludesAvailableCaptionExtent() {
+        try {
+            SubtitleTrimmer.trim("1\n00:00:01,000 --> 00:00:02,000\nTest\n", "srt", 80300000, 80400000);
+            fail();
+        } catch (SubtitleTrimmer.NoCuesException expected) {
+            assertTrue(expected.getMessage().contains("00:00:01.000"));
+            assertTrue(expected.getMessage().contains("00:00:02.000"));
+        }
+    }
 }
