@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 final class ClipDownload {
-    static final String INPUT_ARGS = "ffmpeg_i:-request_size 8388608 -short_seek_size 8388608 -multiple_requests 1";
+    static final String INPUT_ARGS = "ffmpeg_i:-request_size 2097152 -initial_request_size 262144 -short_seek_size 2097152 -multiple_requests 1";
     interface Attempt { void run(boolean bounded) throws Exception; }
     interface Action { void run() throws Exception; }
     private ClipDownload() { }

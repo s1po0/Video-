@@ -13,6 +13,9 @@ import tempfile
 import threading
 
 ffmpeg = os.environ.get('FFMPEG', 'ffmpeg')
+# Use the production request settings so a regression in the app fails this test.
+java = (Path(__file__).resolve().parents[1] / 'android/app/src/main/java/com/slicevid/app/ClipDownload.java').read_text()
+input_args = re.search(r'INPUT_ARGS\s*=\s*"([^"]+)"', java).group(1)
 with tempfile.TemporaryDirectory() as temporary:
     root = Path(temporary)
     source = root / 'source.mp4'
@@ -76,7 +79,7 @@ with tempfile.TemporaryDirectory() as temporary:
         infofile=root/'info.json'; infofile.write_text(json.dumps(info))
         cmd = ['python3', '-m', 'yt_dlp', '-f','137+140', '--load-info-json', str(infofile), '--no-playlist', '--ffmpeg-location', ffmpeg,
                '--download-sections', '*3-15',
-               '--downloader-args', 'ffmpeg_i:-request_size 8388608 -short_seek_size 8388608 -multiple_requests 1',
+               '--downloader-args', input_args,
                '--downloader-args', 'ffmpeg:-progress pipe:1 -nostats',
                '-o', str(target)]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
@@ -86,7 +89,9 @@ with tempfile.TemporaryDirectory() as temporary:
         bounded = [(path, a, b, client) for path, a, b, is_bounded, client in server.ranges if is_bounded]
         assert server.ranges and len(bounded) == len(server.ranges), f'unbounded request: {server.ranges}'
         assert {path for path, _, _, _ in bounded} == {'/video.mp4', '/audio.m4a'}, bounded
-        assert all(b - a + 1 <= 8388608 for _, a, b, _ in bounded), bounded
+        assert all(b - a + 1 <= 2097152 for _, a, b, _ in bounded), bounded
+        assert any(path == '/video.mp4' and a == 0 and b - a + 1 <= 262144 for path, a, b, _ in bounded), bounded
+        optimized_requested = sum(b - a + 1 for _, a, b, _ in bounded)
         if Handler.protocol_version == 'HTTP/1.1':
             assert len({client for _, _, _, client in bounded}) < len(bounded), f'no persistent connections: {bounded}'
         clip = root / 'clip.mp4'
@@ -132,4 +137,16 @@ with tempfile.TemporaryDirectory() as temporary:
         correlation = sum(x*y for x,y in zip(a,b)) / math.sqrt(sum(x*x for x in a) * sum(y*y for y in b))
         assert correlation > 0.9, f'audio not aligned: {correlation}'
         assert b'elst' in clip.read_bytes(), 'MP4 edit list missing'
-        print(f'copy cut: {seconds:.2f}s, audio correlation {correlation:.3f}; source packets preserved')
+        # Compare the same test with v16's 8 MiB settings. Range lengths are
+        # requested bytes, an upper bound, not measured mobile data consumption.
+        server.ranges = []
+        old = cmd.copy()
+        old[old.index(input_args)] = 'ffmpeg_i:-request_size 8388608 -short_seek_size 8388608 -multiple_requests 1'
+        old[old.index('-o') + 1] = str(root / 'old.%(ext)s')
+        previous = subprocess.run(old, capture_output=True, text=True, timeout=90)
+        assert previous.returncode == 0, previous.stderr
+        assert (root / 'old.mp4').read_bytes() == clip.read_bytes(), 'request tuning changed output'
+        old_requested = sum(b - a + 1 for _, a, b, _, _ in server.ranges)
+        assert optimized_requested < old_requested, (optimized_requested, old_requested)
+        print(f'copy cut: {seconds:.2f}s, audio correlation {correlation:.3f}; '
+              f'source packets preserved; requested ranges {optimized_requested} vs {old_requested} bytes')
