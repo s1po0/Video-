@@ -1257,6 +1257,7 @@ export const App: React.FC = () => {
               onOpenShop={() => setModal('shop')}
               onStartMixology={() => setShowMixology(true)}
               onRestNight={handleRestOrFinale}
+              onUpdateState={setState}
             />
           ) : (
           <main className="hub-locations-grid">
