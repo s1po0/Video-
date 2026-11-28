@@ -166,9 +166,9 @@ public class DownloadService extends Service {
                     r.addCommands(Arrays.asList("--ffmpeg-location", clipFfmpeg.getAbsolutePath()));
                     r.addOption("--downloader-args", ClipDownload.INPUT_ARGS);
                 }
-                r.addOption("--force-keyframes-at-cuts");
-                // FFmpeg handles sections; re-encoding keeps cuts aligned with subtitles.
-                r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? " -preset ultrafast" : ""));
+                // MP4 stream copy keeps the original encoding; edit-list support varies by player.
+                if (!ClipDownload.useBoundedRequests(kind, format, end)) r.addOption("--force-keyframes-at-cuts");
+                r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats");
             }
             if (format.equals("mp3")) { r.addOption("-x"); r.addOption("--audio-format", "mp3"); }
             else {
