@@ -65,7 +65,7 @@ tasks.register('verifyClipFfmpeg') {
 }
 preBuild.dependsOn verifyClipFfmpeg
 
-apply from: 'capacitor.build.gradle' 
+apply from: 'capacitor.build.gradle'
 
 try {
     def servicesJSON = file('google-services.json')

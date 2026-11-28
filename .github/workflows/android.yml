@@ -33,7 +33,14 @@ jobs:
           python3 tests/clip-range-integration.py
       - run: npx cap sync android
       - name: Build FFmpeg for bounded MP4 clip downloads
-        run: android/scripts/build-clip-ffmpeg.sh
+        run: |
+          if ! android/scripts/build-clip-ffmpeg.sh > /tmp/clip-ffmpeg-build.log 2>&1; then
+            tail -n 35 /tmp/clip-ffmpeg-build.log | while IFS= read -r line; do
+              line=${line//'%'/'%25'}; line=${line//$'\r'/'%0D'}
+              echo "::error::$line"
+            done
+            exit 1
+          fi
       - name: Configure release key when available
         shell: bash
         run: |
