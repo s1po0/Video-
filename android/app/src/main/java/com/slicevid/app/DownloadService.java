@@ -185,7 +185,8 @@ public class DownloadService extends Service {
                 }
             }
         }
-        if (alternate) r.addOption("--extractor-args", "youtube:player_client=web_safari");
+        if (alternate || (kind.equals("subtitle") && "web_safari".equals(intent.getStringExtra("subtitleClient"))))
+            r.addOption("--extractor-args", "youtube:player_client=web_safari");
         return r;
     }
 

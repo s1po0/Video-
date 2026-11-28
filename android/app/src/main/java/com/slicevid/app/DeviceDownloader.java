@@ -64,15 +64,39 @@ public class DeviceDownloader extends Plugin {
         call.reject(DownloadFailure.userMessage(error));
     }
 
+    private YoutubeDLRequest infoRequest(String link, boolean alternate) {
+        YoutubeDLRequest r = request(link);
+        r.addOption("--dump-single-json");
+        r.addOption("--simulate");
+        r.addOption("--skip-download");
+        r.addOption("--write-subs");
+        r.addOption("--write-auto-subs");
+        if (alternate) r.addOption("--extractor-args", "youtube:player_client=web_safari");
+        return r;
+    }
+
+    private java.util.LinkedHashSet<String> subtitleLanguages(JSONObject raw) {
+        java.util.LinkedHashSet<String> langs = new java.util.LinkedHashSet<>();
+        for (String type : new String[]{"subtitles", "automatic_captions"}) {
+            JSONObject tracks = raw.optJSONObject(type);
+            if (tracks != null) {
+                Iterator<String> keys = tracks.keys();
+                while (keys.hasNext()) {
+                    String k = keys.next();
+                    if (k.matches("[A-Za-z0-9_-]{1,35}") && tracks.optJSONArray(k) != null && tracks.optJSONArray(k).length() > 0) langs.add(k);
+                }
+            }
+        }
+        return langs;
+    }
+
     @PluginMethod
     public void info(PluginCall call) {
         worker.execute(() -> {
             try {
                 String link = url(call);
                 initialize();
-                YoutubeDLRequest r = request(link);
-                r.addOption("--dump-single-json");
-                r.addOption("--skip-download");
+                YoutubeDLRequest r = infoRequest(link, false);
                 JSONObject raw;
                 try {
                     raw = new JSONObject(YoutubeDL.getInstance().execute(r).getOut());
@@ -86,25 +110,25 @@ public class DeviceDownloader extends Plugin {
                     catch (Exception ignored) { throw first; }
                     raw = new JSONObject(YoutubeDL.getInstance().execute(r).getOut());
                 }
+                SubtitleDiscovery.Result<JSONObject> captions = SubtitleDiscovery.find(raw,
+                    alternate -> new JSONObject(YoutubeDL.getInstance().execute(infoRequest(link, alternate)).getOut()),
+                    candidate -> !subtitleLanguages(candidate).isEmpty(),
+                    () -> {
+                        SharedPreferences prefs = getContext().getSharedPreferences("extractor", 0);
+                        if (System.currentTimeMillis() - prefs.getLong("attempted", 0) < 86400000L) return false;
+                        prefs.edit().putLong("attempted", System.currentTimeMillis()).apply();
+                        YoutubeDL.getInstance().updateYoutubeDL(getContext(), YoutubeDL.UpdateChannel._STABLE);
+                        return true;
+                    });
                 JSObject out = new JSObject();
                 out.put("title", raw.optString("title", "Video"));
                 out.put("channel", raw.optString("uploader", ""));
                 out.put("duration", raw.optDouble("duration", 0));
                 out.put("thumbnail", raw.optString("thumbnail", ""));
                 JSArray subs = new JSArray();
-                java.util.LinkedHashSet<String> langs = new java.util.LinkedHashSet<>();
-                for (String type : new String[]{"subtitles", "automatic_captions"}) {
-                    JSONObject tracks = raw.optJSONObject(type);
-                    if (tracks != null) {
-                        Iterator<String> keys = tracks.keys();
-                        while (keys.hasNext()) {
-                            String k = keys.next();
-                            if (k.matches("[A-Za-z0-9_-]{1,35}")) langs.add(k);
-                        }
-                    }
-                }
-                for (String lang : langs) subs.put(lang);
+                for (String lang : subtitleLanguages(captions.value)) subs.put(lang);
                 out.put("subtitles", subs);
+                out.put("subtitleClient", captions.alternate ? "web_safari" : "default");
                 call.resolve(out);
             } catch (Exception e) { fail(call, e); }
         });
@@ -213,12 +237,13 @@ public class DeviceDownloader extends Plugin {
             if (subtitles ? !format.matches("srt|vtt") : !format.matches("mp4|mp3|webm")) throw new Exception("فۆرماتەکە دروست نییە.");
             String quality = call.getString("quality", "best");
             String language = call.getString("language", "");
-            if (!quality.matches("best|360|480|720|1080") || (subtitles && !language.matches("[A-Za-z0-9_-]{1,35}"))) throw new Exception("هەڵبژاردنەکە دروست نییە.");
+            String subtitleClient = call.getString("subtitleClient", "default");
+            if (!quality.matches("best|360|480|720|1080") || (subtitles && (!language.matches("[A-Za-z0-9_-]{1,35}") || !subtitleClient.matches("default|web_safari")))) throw new Exception("هەڵبژاردنەکە دروست نییە.");
             double start = call.getDouble("start", 0.0), end = call.getDouble("end", 0.0);
             if (!Double.isFinite(start) || !Double.isFinite(end) || start < 0 || end < 0 || end > Integer.MAX_VALUE || (end > 0 && end <= start) || (start > 0 && end == 0)) throw new Exception("کاتی دەستپێک و کۆتایی بپشکنە.");
             Intent intent = new Intent(getContext(), DownloadService.class);
             intent.putExtra("url", link); intent.putExtra("kind", subtitles ? "subtitle" : "video");
-            intent.putExtra("format", format); intent.putExtra("quality", quality); intent.putExtra("language", language);
+            intent.putExtra("format", format); intent.putExtra("quality", quality); intent.putExtra("language", language); intent.putExtra("subtitleClient", subtitleClient);
             intent.putExtra("start", (int) start); intent.putExtra("end", (int) end);
             intent.putExtra("folder", getContext().getSharedPreferences("download_settings", 0).getString("folder", ""));
             getContext().getSharedPreferences("download_state", 0).edit().putString("state", "queued").putString("message", "ئامادەکردنی دابەزاندن...").putLong("queued_at", System.currentTimeMillis()).putInt("percent", -1).apply();
