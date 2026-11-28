@@ -144,7 +144,8 @@ public class DeviceDownloader extends Plugin {
     public void status(PluginCall call) {
         SharedPreferences p = getContext().getSharedPreferences("download_state", 0);
         String state = p.getString("state", "idle");
-        if ("running".equals(state) && !DownloadService.running) {
+        if (("running".equals(state) && !DownloadService.running) ||
+            ("queued".equals(state) && System.currentTimeMillis() - p.getLong("queued_at", 0) > 30000 && !DownloadService.running)) {
             state = "error";
             p.edit().putString("state", state).putString("message", "دابەزاندن وەستا؛ تکایە دووبارە هەوڵ بدەوە.").apply();
         }
@@ -171,7 +172,7 @@ public class DeviceDownloader extends Plugin {
             intent.putExtra("format", format); intent.putExtra("quality", quality); intent.putExtra("language", language);
             intent.putExtra("start", (int) start); intent.putExtra("end", (int) end);
             intent.putExtra("folder", getContext().getSharedPreferences("download_settings", 0).getString("folder", ""));
-            getContext().getSharedPreferences("download_state", 0).edit().putString("state", "queued").putString("message", "ئامادەکردنی دابەزاندن...").putInt("percent", 0).apply();
+            getContext().getSharedPreferences("download_state", 0).edit().putString("state", "queued").putString("message", "ئامادەکردنی دابەزاندن...").putLong("queued_at", System.currentTimeMillis()).putInt("percent", 0).apply();
             queuedCreated = true;
             ContextCompat.startForegroundService(getContext(), intent);
             call.resolve();
