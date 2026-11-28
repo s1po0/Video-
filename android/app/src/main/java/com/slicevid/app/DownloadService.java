@@ -98,19 +98,25 @@ public class DownloadService extends Service {
             }
             final boolean boundedAvailable = useFastClip;
             File output;
+            String subtitleLanguage = intent.getStringExtra("language");
             if (kind.equals("subtitle")) {
                 boolean tryAutomatic = intent.getBooleanExtra("tryAutomatic", false) && intent.getIntExtra("end", 0) > 0;
-                output = SubtitleDownload.run(tryAutomatic, automaticOnly -> {
-                    downloadWithRetry(intent, dir, parallelAvailable, boundedAvailable, kind, clipDuration, automaticOnly);
+                String[] originals = intent.getIntExtra("end", 0) > 0 ? intent.getStringArrayExtra("fallbackOriginals") : null;
+                SubtitleDownload.Result<File> result = SubtitleDownload.run(subtitleLanguage, tryAutomatic, originals, (language, automaticOnly) -> {
+                    downloadWithRetry(intent, dir, parallelAvailable, boundedAvailable, kind, clipDuration, automaticOnly, language);
                     return prepareOutput(intent, dir, kind, format, clipDuration);
                 }, () -> state("running", "ژێرنووسی خۆکار تاقی دەکرێتەوە...", -1), () -> clearJobFiles(dir));
+                output = result.value;
+                subtitleLanguage = result.language;
             } else {
-                downloadWithRetry(intent, dir, parallelAvailable, boundedAvailable, kind, clipDuration, false);
+                downloadWithRetry(intent, dir, parallelAvailable, boundedAvailable, kind, clipDuration, false, null);
                 output = prepareOutput(intent, dir, kind, format, clipDuration);
             }
             state("running", "پاشەکەوتکردنی فایل...", -1);
-            publish(output, format, intent.getStringExtra("folder"));
-            resultMessage = "تەواو بوو ✓ فایلەکە لە شوێنی هەڵبژێردراو پاشەکەوت کرا.";
+            publish(output, format, intent.getStringExtra("folder"), kind.equals("subtitle") ? subtitleLanguage : null);
+            resultMessage = kind.equals("subtitle")
+                ? "ژێرنووس پاشەکەوت کرا. زمان: " + subtitleLanguage
+                : "تەواو بوو ✓ فایلەکە لە شوێنی هەڵبژێردراو پاشەکەوت کرا.";
         } catch (Exception e) {
             resultState = "error";
             resultMessage = DownloadFailure.userMessage(e);
@@ -125,9 +131,9 @@ public class DownloadService extends Service {
         stopSelf();
     }
 
-    private void downloadWithRetry(Intent intent, File dir, boolean parallel, boolean bounded, String kind, int clipDuration, boolean automaticOnly) throws Exception {
+    private void downloadWithRetry(Intent intent, File dir, boolean parallel, boolean bounded, String kind, int clipDuration, boolean automaticOnly, String subtitleLanguage) throws Exception {
         DownloadRetry.run(
-            alternate -> executeWithFallback(intent, dir, alternate, parallel, bounded, kind, clipDuration, automaticOnly),
+            alternate -> executeWithFallback(intent, dir, alternate, parallel, bounded, kind, clipDuration, automaticOnly, subtitleLanguage),
             () -> {
                 state("running", "یوتوب ڕێگەی نەدا؛ نوێکردنەوە و هەوڵدانەوە...", -1);
                 YoutubeDL.getInstance().updateYoutubeDL(getApplicationContext(), YoutubeDL.UpdateChannel._STABLE);
@@ -156,7 +162,7 @@ public class DownloadService extends Service {
         return output;
     }
 
-    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate, boolean parallel, ClipDownload.Mode mode, boolean automaticOnly) {
+    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate, boolean parallel, ClipDownload.Mode mode, boolean automaticOnly, String subtitleLanguage) {
         String link = intent.getStringExtra("url"), kind = intent.getStringExtra("kind"), format = intent.getStringExtra("format");
         YoutubeDLRequest r = new YoutubeDLRequest(link);
         r.addOption("--no-playlist"); r.addOption("--no-warnings");
@@ -171,7 +177,7 @@ public class DownloadService extends Service {
             r.addOption("--skip-download");
             if (!automaticOnly) r.addOption("--write-subs");
             r.addOption("--write-auto-subs");
-            r.addOption("--sub-langs", intent.getStringExtra("language"));
+            r.addOption("--sub-langs", subtitleLanguage);
             r.addOption("--sub-format", "vtt/best"); r.addOption("--convert-subs", format);
         } else {
             int start = intent.getIntExtra("start", 0), end = intent.getIntExtra("end", 0);
@@ -208,11 +214,11 @@ public class DownloadService extends Service {
         return r;
     }
 
-    private void executeWithFallback(Intent intent, File dir, boolean alternate, boolean parallel, boolean bounded, String kind, int clipDuration, boolean automaticOnly) throws Exception {
+    private void executeWithFallback(Intent intent, File dir, boolean alternate, boolean parallel, boolean bounded, String kind, int clipDuration, boolean automaticOnly, String subtitleLanguage) throws Exception {
         ClipDownload.run(bounded, mode ->
             DownloadSpeed.run(parallel,
                 fast -> {
-                    executeRequest(buildRequest(intent, dir, alternate, fast, mode, automaticOnly), intent, kind, clipDuration, mode != ClipDownload.Mode.LEGACY);
+                    executeRequest(buildRequest(intent, dir, alternate, fast, mode, automaticOnly, subtitleLanguage), intent, kind, clipDuration, mode != ClipDownload.Mode.LEGACY);
                     if (ClipDownload.useBoundedRequests(kind, intent.getStringExtra("format"), intent.getIntExtra("end", 0))) {
                         File output = new File(dir, "download.mp4");
                         if (!output.isFile()) throw new Exception("فایلی تەواوی ڤیدیۆکە دروست نەبوو.");
@@ -272,9 +278,9 @@ public class DownloadService extends Service {
         if (!video || !audio) throw new Exception("فایلی MP4 وێنە و دەنگی سازگاری تێدا نەدۆزرایەوە. تکایە کوالێتییەکی تر تاقی بکەرەوە.");
     }
 
-    private void publish(File file, String extension, String folder) throws Exception {
+    private void publish(File file, String extension, String folder, String subtitleLanguage) throws Exception {
         String mime = extension.equals("mp3") ? "audio/mpeg" : extension.equals("mp4") ? "video/mp4" : extension.equals("webm") ? "video/webm" : "text/plain";
-        String filename = "SliceVid-" + System.currentTimeMillis() + "." + extension;
+        String filename = "SliceVid-" + System.currentTimeMillis() + (subtitleLanguage == null ? "" : "-" + subtitleLanguage) + "." + extension;
         Uri destination;
         boolean media = folder == null || folder.isEmpty();
         if (media) {

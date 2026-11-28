@@ -145,7 +145,8 @@ $('subtitle').addEventListener('click', async () => {
   try {
     const range = selectedRange();
     await native.subtitles({ url: currentUrl, ...range, language: $('languages').value, format: $('subformat').value, subtitleClient,
-      tryAutomatic: manualSubtitleLanguages.includes($('languages').value) && automaticSubtitleLanguages.includes($('languages').value) });
+      tryAutomatic: manualSubtitleLanguages.includes($('languages').value) && automaticSubtitleLanguages.includes($('languages').value),
+      fallbackOriginals: automaticSubtitleLanguages.filter(code => code.endsWith('-orig') && code !== $('languages').value).slice(0, 2) });
     taskState = 'queued'; buttons(); status.hidden = false; statusText.textContent = 'دابەزاندنی ژێرنووس...'; $('progress').removeAttribute('value'); updateStatus();
   } catch (err) { showError(err.message); }
 });

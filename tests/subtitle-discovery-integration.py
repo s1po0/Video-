@@ -17,7 +17,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.server.requests.append(self.path)
-        body = (b'WEBVTT\n\n22:20:06.100 --> 22:20:07.900\nAuto\n\n' if self.path == '/ar-auto.vtt'
+        body = (b'WEBVTT\n\n22:20:06.100 --> 22:20:07.900\nAuto\n\n' if self.path in ('/ar-auto.vtt', '/en-orig.vtt')
                 else b'WEBVTT\n\n00:00:04.000 --> 00:00:06.000\nHello\n\n')
         self.send_response(200)
         self.send_header('Content-Length', str(len(body)))
@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory() as temporary, Server(('127.0.0.1', 0), Handle
     info = {'id': 'test', 'title': 'test', 'duration': 22, 'extractor': 'generic', 'extractor_key': 'Generic',
             'formats': [{'format_id': '1', 'ext': 'mp4', 'url': f'{url}/video.mp4'}],
             'subtitles': {'fr': [{'ext': 'vtt', 'url': f'{url}/fr.vtt'}], 'ar': [{'ext': 'vtt', 'url': f'{url}/ar-manual.vtt'}]},
-            'automatic_captions': {'en': [{'ext': 'vtt', 'url': f'{url}/en.vtt'}], 'ar': [{'ext': 'vtt', 'url': f'{url}/ar-auto.vtt'}]}}
+            'automatic_captions': {'en': [{'ext': 'vtt', 'url': f'{url}/en.vtt'}], 'ar': [{'ext': 'vtt', 'url': f'{url}/ar-auto.vtt'}], 'en-orig': [{'ext': 'vtt', 'url': f'{url}/en-orig.vtt'}]}}
     infofile = root / 'info.json'
     infofile.write_text(json.dumps(info))
     base = ['python3', '-m', 'yt_dlp', '--load-info-json', str(infofile), '--no-playlist']
@@ -59,4 +59,9 @@ with tempfile.TemporaryDirectory() as temporary, Server(('127.0.0.1', 0), Handle
         subprocess.run(base + opts, cwd=root, capture_output=True, text=True, check=True, timeout=30)
         assert server.requests[-1] == endpoint, server.requests
         assert phrase in (root / (output.name + '.ar.srt')).read_text()
-    print('manual and automatic tracks discovered; automatic-only retry and long timestamp conversion passed')
+    opts = ['--skip-download', '--write-auto-subs', '--sub-langs', 'en-orig', '--sub-format', 'vtt/best',
+            '--convert-subs', 'srt', '--ffmpeg-location', os.environ.get('FFMPEG', 'ffmpeg'), '-o', str(root / 'original.%(ext)s')]
+    subprocess.run(base + opts, cwd=root, capture_output=True, text=True, check=True, timeout=30)
+    assert server.requests[-1] == '/en-orig.vtt', server.requests
+    assert '22:20:06,100' in (root / 'original.en-orig.srt').read_text()
+    print('manual, auto and original tracks selected; long timestamp conversion passed')
