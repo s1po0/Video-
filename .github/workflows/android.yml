@@ -23,6 +23,19 @@ jobs:
       - run: npx cap sync android
       - run: ./gradlew assembleRelease
         working-directory: android
+      - name: Package local signing tools
+        run: |
+          tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          mkdir -p signing-tools/build-tools
+          cp "$tools/apksigner" "$tools/zipalign" signing-tools/build-tools/
+          cp -r "$tools/lib" signing-tools/build-tools/
+          cp -r "$JAVA_HOME" signing-tools/jdk
+          tar czf signing-tools.tar.gz signing-tools
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-signing-tools
+          path: signing-tools.tar.gz
+          retention-days: 1
       - uses: actions/upload-artifact@v4
         with:
           name: slicevid-unsigned-apk
