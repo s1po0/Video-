@@ -1,6 +1,7 @@
 import { HEROINES, MOOD_META, RANK_TITLES } from '../data/catalog';
 import { HEROINE_OUTFITS } from '../data/outfits';
 import { GameState, HeroineId, Locale } from '../types/game';
+import { scoreResponseWithHeretic } from './hereticScorer';
 
 function getCurrentOutfitDesc(heroineId: HeroineId, outfitId?: string): string {
   const list = HEROINE_OUTFITS[heroineId];
@@ -35,13 +36,13 @@ function buildHeroineSystemPrompt(
 
   const langRule =
     locale === 'ckb'
-      ? 'LANGUAGE: Write 100% in natural, fluent Sorani Kurdish (کوردیی سۆرانی). Write a LONG, deeply sensual, exciting 2-to-3 paragraph reply (8 to 12 rich sentences) blending physical closeness, breathing, touch, and outfit details with spoken dialogue inside «...».'
-      : 'LANGUAGE: Write a LONG, deeply sensual, exciting 2-to-3 paragraph reply in English (8 to 12 rich sentences) blending physical closeness, breathing, touch, and outfit details with spoken dialogue.';
+      ? 'LANGUAGE: Write 100% in natural, fluent Sorani Kurdish (کوردیی سۆرانی). Address the player warmly by his name «سیپان» (Sipan). Write a LONG, deeply sensual, exciting 2-to-3 paragraph reply (8 to 12 rich sentences) blending physical closeness, breathing, touch, and outfit details with spoken dialogue inside «...».'
+      : 'LANGUAGE: Address the player warmly by his name Sipan. Write a LONG, deeply sensual, exciting 2-to-3 paragraph reply in English (8 to 12 rich sentences) blending physical closeness, breathing, touch, and outfit details with spoken dialogue.';
 
   const modeRule =
     contextMode === 'scene'
-      ? 'SETTING: Alone together inside a private suite or candlelit rooftop cabana late at night.'
-      : 'SETTING: Intimate late-night private DM from her hotel bed or rooftop pool, teasing you to come to her room right now.';
+      ? 'SETTING: Alone together with Sipan (handsome bearded young man with swept-back dark hair and warm brown eyes) inside a private suite or candlelit rooftop cabana late at night.'
+      : 'SETTING: Intimate late-night private DM with Sipan from her hotel bed or rooftop pool, teasing Sipan to come to her room right now.';
 
   return [
     personaDetails[heroineId],
@@ -77,6 +78,27 @@ function buildRichDynamicFallback(
     return pools[heroineId][seed];
   }
   return `She closes the distance between you in the candlelit room, her fingers curling into your shirt as her breath warms your neck: “Lock the door… tonight I don’t want an inch of space left between us.”`;
+}
+
+export function buildFreeAiSelfieUrl(
+  heroineId: HeroineId,
+  userHint?: string
+): string {
+  const baseVisual: Record<HeroineId, string> = {
+    layla:
+      'Korean romance webtoon manhwa portrait of glamorous 24yo woman with wavy dark hair and amber eyes in crimson satin evening wear, warm candlelight penthouse, rosy blush',
+    celine:
+      'Korean romance webtoon manhwa portrait of striking 25yo silver-blonde woman with violet eyes in black sweetheart evening dress by fireplace, shy deep blush',
+    aria:
+      'Korean romance webtoon manhwa portrait of glamorous 23yo chestnut-haired woman with hazel eyes in black-and-gold resort swimwear with silk kimono by misty rooftop pool at night',
+  };
+  const safeHint = (userHint || '')
+    .replace(/[^\w\s,.-]/g, ' ')
+    .trim()
+    .slice(0, 80);
+  const fullPrompt = `${baseVisual[heroineId]}${safeHint ? `, ${safeHint}` : ''}, tasteful PG-13 non-nude anime art, no text`;
+  const seed = Math.floor(Math.random() * 999999);
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?model=flux&width=640&height=896&seed=${seed}&nologo=true`;
 }
 
 export async function generateHeroineAiReply(params: {
@@ -124,7 +146,12 @@ export async function generateHeroineAiReply(params: {
       if (res.ok) {
         const data = await res.json();
         const txt = data?.choices?.[0]?.message?.content?.trim();
-        if (txt && txt.length > 40) return txt;
+        if (txt) {
+          const score = scoreResponseWithHeretic(txt);
+          if (!score.isEmptyOrBroken && score.sycoHits === 0 && score.slopHits <= 1) {
+            return txt;
+          }
+        }
       }
     } catch {
       // try next model

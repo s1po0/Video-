@@ -3,7 +3,10 @@ import { MessageCircle, Send, Sparkles, X } from 'lucide-react';
 import { HEROINES, loc, MOOD_META } from '../data/catalog';
 import { HEROINE_OUTFITS } from '../data/outfits';
 import { GameState, HeroineId, Locale, PhoneThread } from '../types/game';
-import { generateHeroineAiReply } from '../utils/aiRoleplay';
+import {
+  buildFreeAiSelfieUrl,
+  generateHeroineAiReply,
+} from '../utils/aiRoleplay';
 
 interface PhoneProps {
   state: GameState;
@@ -69,14 +72,18 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
       outfitId: curOutfitId,
     });
 
+    const wantsLiveFlux = clean.includes('AI-SNAP');
+    const cleanForPrompt = clean.replace('AI-SNAP', '').trim();
     const wantsPhoto =
       includeSnap || /وێنە|جل|سێڵفی|photo|pic|snap|wearing|outfit/i.test(clean);
     const outfits = HEROINE_OUTFITS[selectedHeroine];
-    const snapImg = wantsPhoto
+    const snapImg = wantsLiveFlux
+      ? buildFreeAiSelfieUrl(selectedHeroine)
+      : wantsPhoto
       ? (outfits.find((o) => o.id === curOutfitId) || outfits[0]).image
       : undefined;
 
-    onLiveAiExchange(selectedHeroine, clean, reply, snapImg);
+    onLiveAiExchange(selectedHeroine, cleanForPrompt, reply, snapImg);
     setIsSending(false);
   };
 
@@ -84,38 +91,38 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
     locale === 'ckb'
       ? [
           {
+            txt: '✨ وێنەیەکی تازەی ئێستای خۆتم بۆ بگرە و بینێرە بۆ سیپان! AI-SNAP',
+            snap: true,
+          },
+          {
             txt: '📸 ئێستا چیت لەبەرە لە ژوورەکەت؟ وێنەیەکی تایبەتم بۆ بنێرە...',
             snap: true,
           },
           {
-            txt: '🔥 دێمە ژوورەکەت ئێستا، دەرگاکەم بۆ بکەرەوە مەهێڵە چاوەڕێ بم...',
+            txt: '🔥 من سیپانم، ئێستا دێمە ژوورەکەت دەرگاکەم بۆ بکەرەوە...',
             snap: false,
           },
           {
             txt: '💋 بیر لە گەرمیی لێو و باوەشت دەکەمەوە، ئەمشەو خەوم لێ ناکەوێت...',
             snap: false,
           },
-          {
-            txt: '🌊 وەرە سەر مەلەوانگەکەی سەربان با لە ناو کەپرەکە بە تەنها بین!',
-            snap: true,
-          },
         ]
       : [
+          {
+            txt: '✨ Take a brand-new live photo right now just for Sipan! AI-SNAP',
+            snap: true,
+          },
           {
             txt: '📸 What are you wearing right now? Send me a private late-night snap…',
             snap: true,
           },
           {
-            txt: '🔥 I’m coming straight to your room—leave the door unlocked for me.',
+            txt: '🔥 It’s Sipan—I’m coming straight to your room, leave the door unlocked.',
             snap: false,
           },
           {
             txt: '💋 Can’t stop thinking about your touch tonight… tell me what you want.',
             snap: false,
-          },
-          {
-            txt: '🌊 Meet me up at the rooftop cabana right now, just the two of us.',
-            snap: true,
           },
         ];
 
@@ -185,6 +192,13 @@ export const PhoneOverlay: React.FC<PhoneProps> = ({
                   src={msg.image}
                   alt="snap"
                   className="chat-snap-img"
+                  onError={(e) => {
+                    const fallback =
+                      HEROINE_OUTFITS[selectedHeroine][0].image;
+                    if (e.currentTarget.src !== fallback) {
+                      e.currentTarget.src = fallback;
+                    }
+                  }}
                   onClick={() => setZoomSnap(msg.image!)}
                 />
               )}

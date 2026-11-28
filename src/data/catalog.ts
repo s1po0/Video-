@@ -311,6 +311,9 @@ export const GALLERY_CGS: {
   image: string;
   title: LocalizedText;
 }[] = [
+  { id: 'cg_sipan_trio', image: '/assets/cg_sipan_trio.jpg', title: { ckb: 'سیپان لەگەڵ لەیلا، سێلین و ئاریا', en: 'Sipan & The Three Velvet Heroines' } },
+  { id: 'sipan_penthouse', image: '/assets/sipan_penthouse.jpg', title: { ckb: 'سیپان — میوانی تایبەتی ١٧٠٩', en: 'Sipan — Suite 1709 VIP' } },
+  { id: 'sipan_pool', image: '/assets/sipan_pool.jpg', title: { ckb: 'سیپان لە مەلەوانگەی سەربان', en: 'Sipan at the Rooftop Pool' } },
   { id: 'cover_keyart', image: '/assets/cover_keyart.jpg', title: { ckb: 'شەوی یەکەم لە نهۆمی ١٧', en: 'First Night on Floor 17' } },
   { id: 'layla_normal', image: '/assets/layla_normal.jpg', title: { ckb: 'زەردەخەنەی سەوزی لەیلا', en: 'Layla in Emerald Velvet' } },
   { id: 'celine_normal', image: '/assets/celine_normal.jpg', title: { ckb: 'گەڕانەوەی سێلین', en: 'Celine by the Rainy Glass' } },

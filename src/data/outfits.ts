@@ -9,6 +9,21 @@ export interface OutfitOption {
   aiDesc: string;
 }
 
+export const SIPAN_OUTFITS = [
+  {
+    id: 'sipan_penthouse',
+    name: { ckb: 'قاتی ڕەشی پێنتهاوس — سیپان', en: 'Sipan — Penthouse Noir Suit' },
+    tag: { ckb: '👑 VIP ١٧٠٩', en: '👑 VIP 1709' },
+    image: '/assets/sipan_penthouse.jpg',
+  },
+  {
+    id: 'sipan_pool',
+    name: { ckb: 'کراسی ئاوریشمی زێڕینی سەربان — سیپان', en: 'Sipan — Rooftop Gold Silk' },
+    tag: { ckb: '🌊 سەربان', en: '🌊 Rooftop' },
+    image: '/assets/sipan_pool.jpg',
+  },
+];
+
 export const HEROINE_OUTFITS: Record<HeroineId, OutfitOption[]> = {
   layla: [
     {

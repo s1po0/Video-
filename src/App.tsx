@@ -39,7 +39,7 @@ import {
   HotelTowerMap,
 } from './components/HotelTowerMap';
 import { WardrobeModal } from './components/WardrobeModal';
-import { HEROINE_OUTFITS } from './data/outfits';
+import { HEROINE_OUTFITS, SIPAN_OUTFITS } from './data/outfits';
 import { TowerHotspot } from './data/towerMap';
 import {
   computeRank,
@@ -92,7 +92,7 @@ const SPEAKER_LABELS: Record<
   { ckb: string; en: string; color: string }
 > = {
   narrator: { ckb: 'گێڕەرەوە', en: 'Narrator', color: '#e2d4f0' },
-  you: { ckb: 'تۆ', en: 'You', color: '#93c5fd' },
+  you: { ckb: 'سیپان', en: 'Sipan', color: '#60a5fa' },
   layla: { ckb: 'لەیلا', en: 'Layla', color: '#34d399' },
   celine: { ckb: 'سێلین', en: 'Celine', color: '#f472b6' },
   aria: { ckb: 'ئاریا', en: 'Aria', color: '#fbbf24' },
@@ -182,13 +182,26 @@ export const App: React.FC = () => {
   });
 
   const [meta, setMeta] = useState<PersistentMeta>(() => {
+    const defaultSeeds = [
+      'cg_sipan_trio',
+      'sipan_penthouse',
+      'sipan_pool',
+      'cover_keyart',
+    ];
     try {
       const raw = localStorage.getItem(META_STORAGE_KEY);
-      return raw
-        ? JSON.parse(raw)
-        : { unlockedCgs: ['cover_keyart'], unlockedEndings: [] };
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          ...parsed,
+          unlockedCgs: Array.from(
+            new Set([...defaultSeeds, ...(parsed.unlockedCgs || [])])
+          ),
+        };
+      }
+      return { unlockedCgs: defaultSeeds, unlockedEndings: [] };
     } catch {
-      return { unlockedCgs: ['cover_keyart'], unlockedEndings: [] };
+      return { unlockedCgs: defaultSeeds, unlockedEndings: [] };
     }
   });
 
@@ -205,6 +218,13 @@ export const App: React.FC = () => {
     null
   );
   const [hubViewMode, setHubViewMode] = useState<'tower' | 'cards'>('tower');
+  const [sipanOutfit, setSipanOutfit] = useState<string>(() => {
+    try {
+      return localStorage.getItem('midnight_velvet_sipan_v25') || 'sipan_penthouse';
+    } catch {
+      return 'sipan_penthouse';
+    }
+  });
   const [equippedOutfits, setEquippedOutfits] = useState<
     Record<HeroineId, string>
   >(() => {
@@ -949,12 +969,15 @@ export const App: React.FC = () => {
     triggerHaptic('medium');
     showToast('🔥 +7 ❤️  +9 🔥');
 
+    const sipanImg =
+      SIPAN_OUTFITS.find((s) => s.id === sipanOutfit)?.image ||
+      '/assets/sipan_penthouse.jpg';
     const equippedImg = getEquippedOutfitImage(hid, equippedOutfits);
     const newBeats: SceneBeat[] = [
       ...encounter.beats,
       {
         speaker: 'you',
-        image: equippedImg,
+        image: sipanImg,
         camera: 'close',
         text: { ckb: textToUse, en: textToUse },
       },
@@ -1024,7 +1047,7 @@ export const App: React.FC = () => {
         <div className="title-screen">
           <div
             className="title-bg"
-            style={{ backgroundImage: 'url(/assets/cover_keyart.jpg)' }}
+            style={{ backgroundImage: 'url(/assets/cg_sipan_trio.jpg)' }}
           />
           <div className="title-vignette" />
           <AtmosphereCanvas mode="candle_embers" intensity={1.15} />
@@ -1143,6 +1166,21 @@ export const App: React.FC = () => {
           {/* Top RPG Status HUD */}
           <header className="hub-header">
             <div className="hub-calendar-row">
+              <button
+                type="button"
+                className="sipan-hud-chip"
+                onClick={() => setModal('wardrobe')}
+              >
+                <img
+                  src={
+                    SIPAN_OUTFITS.find((s) => s.id === sipanOutfit)?.image ||
+                    '/assets/sipan_penthouse.jpg'
+                  }
+                  alt="Sipan"
+                />
+                <span>{locale === 'ckb' ? 'سیپان' : 'Sipan'}</span>
+              </button>
+
               <div className="night-badge">
                 <Moon size={15} />
                 <strong>
@@ -1821,6 +1859,16 @@ export const App: React.FC = () => {
                     background: 'rgba(20, 12, 34, 0.72)',
                   }}
                 >
+                  {activeBeat.speaker === 'you' && (
+                    <img
+                      src={
+                        SIPAN_OUTFITS.find((s) => s.id === sipanOutfit)
+                          ?.image || '/assets/sipan_penthouse.jpg'
+                      }
+                      alt="Sipan"
+                      className="sipan-speaker-face"
+                    />
+                  )}
                   {SPEAKER_LABELS[activeBeat.speaker][locale]}
                 </span>
                 <span className="beat-progress">
@@ -1941,7 +1989,22 @@ export const App: React.FC = () => {
         <WardrobeModal
           locale={locale}
           equippedOutfits={equippedOutfits}
+          sipanOutfit={sipanOutfit}
           onEquip={handleEquipOutfit}
+          onEquipSipan={(sid) => {
+            triggerHaptic('small');
+            setSipanOutfit(sid);
+            try {
+              localStorage.setItem('midnight_velvet_sipan_v25', sid);
+            } catch {
+              // ignore
+            }
+            showToast(
+              locale === 'ckb'
+                ? '👑 ستایلی سیپان گۆڕدرا!'
+                : '👑 Sipan outfit updated!'
+            );
+          }}
           onZoom={(img) => setZoomCg(img)}
           onClose={() => setModal(null)}
         />
