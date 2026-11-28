@@ -1,4 +1,5 @@
-import { MusicMood, SceneEffect } from '../types/story';
+export type MusicMood = 'midnight_jazz' | 'tension_pulse' | 'tender_piano' | 'passionate_strings' | 'dawn_warmth';
+export type SceneEffect = 'none' | 'lightning' | 'heartbeat' | 'warm_glow' | 'shake';
 
 class ProceduralAudioEngine {
   private ctx: AudioContext | null = null;

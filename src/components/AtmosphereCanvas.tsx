@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { AtmosphereMode } from '../types/story';
+export type AtmosphereMode = 'rain_storm' | 'candle_embers' | 'balcony_mist' | 'dawn_petals';
 
 interface Props {
   mode: AtmosphereMode;
