@@ -41,16 +41,16 @@ jobs:
 
       - name: Decode GitHub Secret Keystore & build signed APK
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          MIDNIGHT_VELVET_KEYSTORE_B64: ${{ secrets.MIDNIGHT_VELVET_KEYSTORE_B64 }}
+          MIDNIGHT_VELVET_STORE_PASS: ${{ secrets.MIDNIGHT_VELVET_STORE_PASS }}
+          MIDNIGHT_VELVET_KEY_ALIAS: ${{ secrets.MIDNIGHT_VELVET_KEY_ALIAS }}
+          MIDNIGHT_VELVET_KEY_PASS: ${{ secrets.MIDNIGHT_VELVET_KEY_PASS }}
         run: |
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "Using permanent keystore from GitHub Actions Secrets (ANDROID_KEYSTORE_BASE64)"
-            printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d ' \n\r\t' | base64 -d > android/app/release-key.jks
+          if [ -n "$MIDNIGHT_VELVET_KEYSTORE_B64" ]; then
+            echo "Using permanent keystore from GitHub Actions Secrets (MIDNIGHT_VELVET_KEYSTORE_B64)"
+            printf '%s' "$MIDNIGHT_VELVET_KEYSTORE_B64" | tr -d ' \n\r\t' | base64 -d > android/app/release-key.jks
           else
-            echo "WARNING: ANDROID_KEYSTORE_BASE64 secret not set yet; using temporary fallback key"
+            echo "WARNING: MIDNIGHT_VELVET_KEYSTORE_B64 secret not set yet; using temporary fallback key"
             keytool -genkeypair -v \
               -keystore android/app/release-key.jks \
               -alias midnightvelvet \
