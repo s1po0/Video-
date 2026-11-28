@@ -17,6 +17,24 @@ public class DownloadRetryTest {
         assertFalse(DownloadFailure.userMessage(new Exception("error https://site.test/?token=secret ip=1.2.3.4")).contains("1.2.3.4"));
         assertFalse(DownloadFailure.userMessage(new Exception("error https://site.test/?token=secret")).contains("secret"));
     }
+    @Test public void longFfmpegOutputShowsCauseNotInputMetadata() {
+        String log = "Input #0, mov from https://host.test/video?sig=secret\n" + "metadata ".repeat(100)
+            + "\n[out#0] Error writing trailer of /data/user/0/app/video.mp4: No space left on device\n"
+            + "Conversion failed!\nERROR: ffmpeg exited with code 1";
+        String result = DownloadFailure.userMessage(new Exception(log));
+        assertTrue(result.contains("No space left on device"));
+        assertFalse(result.contains("Input #0"));
+        assertFalse(result.contains("secret"));
+        assertFalse(result.contains("/data/user/0"));
+    }
+    @Test public void errorTailIsRedactedBeforeTruncation() {
+        String log = "Input #0 " + "x".repeat(400) + "\nError opening https://host.test/video?sig=secret ip=1.2.3.4 token=sensitive";
+        String result = DownloadFailure.userMessage(new Exception(log));
+        assertFalse(result.contains("secret"));
+        assertFalse(result.contains("sensitive"));
+        assertFalse(result.contains("1.2.3.4"));
+        assertTrue(result.contains("Error opening"));
+    }
     @Test public void retryUpdateThenAlternateWithCleanSlate() throws Exception {
         List<String> calls = new ArrayList<>();
         DownloadRetry.run(alt -> { calls.add(alt ? "alternate" : "default"); if (!alt) throw forbidden(); },

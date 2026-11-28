@@ -77,7 +77,7 @@ with tempfile.TemporaryDirectory() as temporary:
         cmd = ['python3', '-m', 'yt_dlp', '-f','137+140', '--load-info-json', str(infofile), '--no-playlist', '--ffmpeg-location', ffmpeg,
                '--download-sections', '*3-15', '--force-keyframes-at-cuts',
                '--downloader-args', 'ffmpeg_i:-request_size 8388608 -short_seek_size 8388608 -multiple_requests 1',
-               '--downloader-args', 'ffmpeg:-progress pipe:1 -nostats -preset superfast',
+               '--downloader-args', 'ffmpeg:-progress pipe:1 -nostats -preset ultrafast',
                '-o', str(target)]
         if os.environ.get('TEST_BROKEN_FFMPEG') == '1':
             broken = root / 'libffmpeg_broken.so'
