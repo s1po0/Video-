@@ -4,7 +4,17 @@ snapshot() {
   local stage="$1"
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null || true
   adb exec-out cat /sdcard/ui.xml > "ui-$stage.xml" || true
-  echo "::notice title=UI-$stage::$(base64 -w0 "ui-$stage.xml")"
+  python3 - "$stage" <<'PYUI'
+import sys, xml.etree.ElementTree as ET
+stage = sys.argv[1]
+root = ET.parse(f'ui-{stage}.xml')
+items = []
+for n in root.iter('node'):
+    text = n.get('text') or n.get('content-desc') or ''
+    if text or n.get('class', '').endswith('EditText'):
+        items.append(f"{text} {n.get('bounds')} {n.get('class').split('.')[-1]}")
+print(f"::notice title=UI-{stage}::" + ' | '.join(items).replace('%', '%25').replace('\n', '%0A'))
+PYUI
   adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | sed 's/^/::notice title=Activity::/' || true
 }
 echo "::notice title=ABIs::$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')"
