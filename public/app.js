@@ -1,6 +1,26 @@
 'use strict';
 
 const $ = (sel) => document.querySelector(sel);
+const isAndroid = !!window.Capacitor?.isNativePlatform();
+let serverOrigin = isAndroid ? (localStorage.getItem('slicevidServer') || '') : '';
+function apiUrl(path) {
+  if (isAndroid && !serverOrigin) throw new Error('Save your HTTPS backend server URL first.');
+  return serverOrigin + path;
+}
+if (isAndroid) {
+  $('#server-settings').hidden = false;
+  $('#server-url').value = serverOrigin;
+  $('#save-server').addEventListener('click', () => {
+    try {
+      const u = new URL($('#server-url').value.trim());
+      if (u.protocol !== 'https:' || u.username || u.password || u.pathname !== '/' || u.search || u.hash) throw new Error();
+      serverOrigin = u.origin;
+      localStorage.setItem('slicevidServer', serverOrigin);
+      $('#server-message').textContent = 'Server saved.';
+    } catch { $('#server-message').textContent = 'Enter a valid HTTPS server origin without a path.'; }
+  });
+}
+
 
 const state = {
   video: null,
@@ -31,7 +51,7 @@ function clearError(el) {
 }
 
 async function postJSON(url, body) {
-  const res = await fetch(url, {
+  const res = await fetch(apiUrl(url), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -65,7 +85,7 @@ urlForm.addEventListener('submit', async (e) => {
     }
     loadVideo(data.video, url);
   } catch (err) {
-    showError(urlError, 'Network error. Please try again.');
+    showError(urlError, err.message === 'Save your HTTPS backend server URL first.' ? err.message : 'Network error. Check your backend server and try again.');
   } finally {
     urlSubmit.disabled = false;
     urlSubmit.textContent = 'Trim video';
@@ -205,12 +225,13 @@ function setupSubtitles(video) {
 
 subsBtn.addEventListener('click', async () => {
   clearError(subsError);
+  subsError.style.color = '';
   const lang = subLang.value;
   if (!lang) { showError(subsError, 'No subtitle language available for this video.'); return; }
   subsBtn.disabled = true;
   subsBtn.textContent = 'Downloading…';
   try {
-    const res = await fetch('/api/subtitles', {
+    const res = await fetch(apiUrl('/api/subtitles'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -228,7 +249,17 @@ subsBtn.addEventListener('click', async () => {
     }
     const blob = await res.blob();
     const fn = (state.video.title || 'video').replace(/[\\/:*?"<>|]+/g, '').slice(0, 120) + '.' + (subFormat.value);
-    triggerDownload(blob, fn);
+    if (isAndroid) {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      await window.Capacitor.Plugins.NativeDownloads.saveSubtitle({base64, extension: subFormat.value});
+      subsError.style.color = 'var(--good)';
+      showError(subsError, 'Saved to Downloads.');
+    } else triggerDownload(blob, fn);
   } catch {
     showError(subsError, 'Network error while downloading subtitles.');
   } finally {
@@ -255,6 +286,7 @@ downloadBtn.addEventListener('click', async () => {
   downloadBtn.textContent = 'Preparing…';
   progress.hidden = false;
   progressFill.style.width = '0%';
+  progressText.style.color = '';
   progressText.textContent = 'Starting…';
 
   try {
@@ -285,7 +317,23 @@ function showDownloadError(msg) {
 
 function streamProgress(jobId, title) {
   return new Promise((resolve) => {
-    const es = new EventSource('/api/job/' + jobId + '/events');
+    const es = new EventSource(apiUrl('/api/job/' + jobId + '/events'));
+    const complete = async () => {
+      es.close();
+      try {
+        if (isAndroid) await window.Capacitor.Plugins.NativeDownloads.saveUrl({url: apiUrl('/api/job/' + jobId + '/file'), extension: state.format});
+        else window.location.href = apiUrl('/api/job/' + jobId + '/file');
+        progressText.textContent = 'Download started.';
+        progressFill.style.width = '100%';
+        finishDownload();
+      } catch (error) { showDownloadError(error.message || 'Could not save file.'); }
+      resolve();
+    };
+    es.addEventListener('state', (e) => {
+      const data = JSON.parse(e.data);
+      if (data.status === 'done') complete();
+      else if (data.status === 'error') { es.close(); showDownloadError(data.error || 'Download failed.'); resolve(); }
+    });
 
     es.addEventListener('progress', (e) => {
       const d = JSON.parse(e.data);
@@ -295,17 +343,10 @@ function streamProgress(jobId, title) {
       progressText.textContent = d.status === 'error' ? (d.error || 'Error') : phase;
     });
 
-    es.addEventListener('done', () => {
-      progressText.textContent = 'Done! Starting download…';
-      progressFill.style.width = '100%';
-      es.close();
-      // Trigger the actual file download.
-      window.location.href = '/api/job/' + jobId + '/file';
-      finishDownload();
-      resolve();
-    });
+    es.addEventListener('done', complete);
 
     es.addEventListener('error', (e) => {
+      if (!e.data) return; // Transport errors are retried by EventSource.
       let msg = 'Download failed.';
       try { msg = JSON.parse(e.data).error || msg; } catch {}
       es.close();

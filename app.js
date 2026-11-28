@@ -9,6 +9,17 @@ const { getVideoInfo, DEMO_MODE } = require('./src/youtube');
 const { downloadClip, downloadSubtitles, TMP_DIR } = require('./src/download');
 
 const app = express();
+// The Android client is served by Capacitor's local HTTPS origin.
+app.use((req, res, next) => {
+  if (req.headers.origin === 'https://localhost') {
+    res.set('Access-Control-Allow-Origin', 'https://localhost');
+    res.set('Vary', 'Origin');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -68,11 +79,15 @@ setInterval(() => {
 function isValidUrl(value) {
   if (typeof value !== 'string' || value.trim().length === 0) return false;
   if (value.length > 2000) return false;
-  return /^https?:\/\//i.test(value.trim());
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === 'https:' && !parsed.username && !parsed.password && !parsed.port &&
+      ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be', 'music.youtube.com'].includes(parsed.hostname);
+  } catch { return false; }
 }
 
 const FORMATS = new Set(['mp4', 'webm', 'mp3']);
-const QUALITIES = new Set(['best', '1080', '720', '480', '360', '240', '144']);
+const validQuality = (quality) => quality === 'best' || /^(?:[1-9]\d{1,3})$/.test(quality) && Number(quality) <= 4320;
 
 function fail(res, status, error, extra = {}) {
   res.status(status).json({ ok: false, error, ...extra });
@@ -101,7 +116,7 @@ app.post('/api/download', async (req, res) => {
 
   if (!isValidUrl(url)) return fail(res, 400, 'Please provide a valid YouTube URL.');
   if (!FORMATS.has(format)) return fail(res, 400, 'Unsupported format. Use mp4, webm or mp3.');
-  if (quality && !QUALITIES.has(quality)) return fail(res, 400, 'Unsupported quality.');
+  if (quality && !validQuality(quality)) return fail(res, 400, 'Unsupported quality.');
 
   const s = Number(start);
   const e = Number(end);
@@ -181,7 +196,7 @@ app.get('/api/job/:id/file', (req, res) => {
 app.post('/api/subtitles', async (req, res) => {
   const { url, lang, format, title } = req.body || {};
   if (!isValidUrl(url)) return fail(res, 400, 'Please provide a valid YouTube URL.');
-  if (!lang) return fail(res, 400, 'Please choose a subtitle language.');
+  if (typeof lang !== 'string' || !/^[A-Za-z0-9_-]{1,35}$/.test(lang)) return fail(res, 400, 'Please choose a subtitle language.');
   if (!['srt', 'vtt'].includes(format)) return fail(res, 400, 'Subtitle format must be srt or vtt.');
 
   if (DEMO_MODE) {

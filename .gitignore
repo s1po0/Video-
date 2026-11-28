@@ -7,3 +7,10 @@ tmp/
 dist/
 coverage/
 .vercel
+
+# Private Android signing material; never commit or publish these.
+signing-private/
+*.keystore
+*.jks
+*.p12
+*.pfx

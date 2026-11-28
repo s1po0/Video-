@@ -61,15 +61,9 @@ docker build -t slicevid .
 docker run -p 3000:3000 slicevid
 ```
 
-### Vercel
+### Android
 
-This repo is set up for Vercel via `api/index.js` + `vercel.json`. Import the
-repo in Vercel and deploy.
-
-> ⚠️ **Vercel note:** serverless functions have execution time limits
-> (60s on Hobby, up to 300s on Pro) and binary-size limits. Short clips work
-> fine; very long or very high-resolution clips may time out. For heavy use,
-> prefer Render / Railway / a VPS.
+See [ANDROID.md](ANDROID.md) for the Android client, backend requirements, release signing and updates. The current job architecture requires a persistent backend; Vercel serverless is not supported.
 
 ## API
 

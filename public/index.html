@@ -31,6 +31,12 @@
         <h1>Cut, trim &amp; download <span class="accent">any part</span> of a YouTube video</h1>
         <p class="lead">Paste a link, choose your start and end time, and download the exact clip you want — as MP4, WebM or MP3. No software, no watermark. You can grab the subtitles too.</p>
 
+        <div id="server-settings" class="server-settings" hidden>
+          <label for="server-url">Backend server URL (HTTPS)</label>
+          <div class="server-row"><input id="server-url" type="url" placeholder="https://your-slicevid-server.example" /><button id="save-server" type="button">Save server</button></div>
+          <small>The app needs your own running SliceVid server to process downloads.</small>
+          <p id="server-message" aria-live="polite"></p>
+        </div>
         <form id="url-form" class="url-form" autocomplete="off">
           <input id="url-input" type="url" inputmode="url" placeholder="Paste a YouTube link…  (https://www.youtube.com/watch?v=…)" required />
           <button id="url-submit" type="submit">Trim video</button>

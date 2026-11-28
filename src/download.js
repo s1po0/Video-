@@ -126,11 +126,14 @@ function downloadSubtitles({ url, lang, format, jobId, title = 'video' }) {
       '--write-subs',
       '--write-auto-subs',
       '--sub-langs', lang,
-      '--sub-format', format,
+      '--sub-format', 'vtt/best',
+      '--convert-subs', format,
       '-o', outTemplate,
       url,
     ];
 
+    const ffmpeg = resolveFfmpeg();
+    if (ffmpeg) args.unshift('--ffmpeg-location', ffmpeg);
     const cp = spawn(ytdlp, args, { env: process.env });
     let stderr = '';
     cp.stderr.on('data', (d) => { stderr += d.toString(); });

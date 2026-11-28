@@ -73,7 +73,7 @@ function normalizeInfo(data) {
   const addSubs = (obj, auto) => {
     Object.keys(obj || {}).forEach((code) => {
       if (!subMap.has(code)) subMap.set(code, { code, name: langName(code), auto });
-      else subMap.get(code).auto = subMap.get(code).auto || auto;
+      // Prefer manually provided captions when both tracks exist.
     });
   };
   addSubs(data.subtitles, false);

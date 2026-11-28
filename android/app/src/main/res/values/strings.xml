@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SliceVid</string>
+    <string name="title_activity_main">SliceVid</string>
+    <string name="package_name">com.slicevid.app</string>
+    <string name="custom_url_scheme">com.slicevid.app</string>
+</resources>

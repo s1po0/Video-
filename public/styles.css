@@ -198,3 +198,10 @@ select {
   .thumb { flex: none; }
   .nav-links { display: none; }
 }
+
+.server-settings { max-width: 720px; margin: 0 auto 18px; text-align: left; color: var(--muted); font-size: .9rem; }
+.server-settings[hidden] { display: none; }
+.server-row { display: flex; gap: 8px; margin: 6px 0; }
+.server-row input { flex: 1; min-width: 0; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+.server-row button { border: 0; border-radius: 10px; padding: 0 16px; cursor: pointer; color: white; background: var(--accent); }
+#server-message { margin: 5px 0; }
