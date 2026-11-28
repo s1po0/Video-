@@ -1156,12 +1156,16 @@ export const App: React.FC = () => {
       {/* ==================== SCREEN 2: PENTHOUSE HUB ==================== */}
       {screen === 'hub' && (
         <div className="hub-screen">
-          <div
-            className="hub-bg"
-            style={{ backgroundImage: 'url(/assets/bg_penthouse.jpg)' }}
-          />
-          <div className="hub-overlay" />
-          <AtmosphereCanvas mode="rain_storm" intensity={0.75} />
+          {hubViewMode === 'cards' && (
+            <>
+              <div
+                className="hub-bg"
+                style={{ backgroundImage: 'url(/assets/bg_penthouse.jpg)' }}
+              />
+              <div className="hub-overlay" />
+              <AtmosphereCanvas mode="rain_storm" intensity={0.75} />
+            </>
+          )}
 
           {/* Sleek Compact Estella-Style RPG HUD */}
           <header className="hub-header compact-v26">
@@ -1252,6 +1256,7 @@ export const App: React.FC = () => {
               onTriggerSpa={handleInspectSpaScene}
               onOpenShop={() => setModal('shop')}
               onStartMixology={() => setShowMixology(true)}
+              onRestNight={handleRestOrFinale}
             />
           ) : (
           <main className="hub-locations-grid">

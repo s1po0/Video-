@@ -1856,12 +1856,14 @@ textarea {
 
 .freeroam-stage {
   position: relative;
+  z-index: 15;
   flex: 1;
   min-height: 0;
   width: 100%;
   overflow: hidden;
   touch-action: none;
   user-select: none;
+  background: #0f172a;
 }
 
 .freeroam-canvas {
@@ -1869,6 +1871,38 @@ textarea {
   height: 100%;
   display: block;
   touch-action: none;
+}
+
+.floor-chip.zoom-btn {
+  background: rgba(56, 189, 248, 0.22);
+  color: #bae6fd;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+}
+
+@media (max-height: 520px) {
+  .hub-header.compact-v26 {
+    padding: 6px 58px 4px;
+  }
+  .hub-header.compact-v26 .hub-calendar-row {
+    margin-bottom: 0;
+  }
+  .hub-bottom-dock {
+    padding: 4px 12px 6px;
+    gap: 6px;
+  }
+  .hub-bottom-dock .dock-btn {
+    flex-direction: row;
+    gap: 5px;
+    padding: 5px 8px;
+    min-height: 32px;
+    font-size: 0.74rem;
+  }
+  .virtual-joystick-zone {
+    width: 82px;
+    height: 82px;
+    bottom: 10px;
+    left: 14px;
+  }
 }
 
 .freeroam-floor-bar {
