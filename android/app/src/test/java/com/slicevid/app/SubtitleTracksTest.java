@@ -1,8 +1,8 @@
 package com.slicevid.app;
 
 import org.json.JSONObject;
-import com.sun.net.httpserver.HttpServer;
-import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.junit.Rule;
@@ -24,25 +24,28 @@ public class SubtitleTracksTest {
         assertNull(SubtitleTracks.load(temp.getRoot(), "https://youtu.be/abcdefghijk", "fr", false, capture));
     }
     @Test public void directHttpReadsCaptionAndRejectsRedirect() throws Exception {
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/captions", exchange -> {
-            byte[] body = "{\"events\":[]}".getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(200, body.length);
-            exchange.getResponseBody().write(body);
-            exchange.close();
-        });
-        server.createContext("/redirect", exchange -> {
-            exchange.getResponseHeaders().add("Location", "/captions");
-            exchange.sendResponseHeaders(302, -1);
-            exchange.close();
-        });
-        server.start();
-        try {
-            String base = "http://127.0.0.1:" + server.getAddress().getPort();
+        try (ServerSocket server = new ServerSocket(0)) {
+            Thread responses = new Thread(() -> {
+                try {
+                    for (int i = 0; i < 2; i++) try (Socket socket = server.accept()) {
+                        java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                        String line;
+                        while ((line = reader.readLine()) != null && !line.isEmpty()) { }
+                        String response = i == 0
+                            ? "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\n{\"events\":[]}"
+                            : "HTTP/1.1 302 Found\r\nLocation: /captions\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                        socket.getOutputStream().write(response.getBytes(StandardCharsets.UTF_8));
+                    }
+                } catch (IOException e) { throw new RuntimeException(e); }
+            });
+            responses.start();
+            String base = "http://127.0.0.1:" + server.getLocalPort();
             assertEquals("{\"events\":[]}", SubtitleTracks.fetch(base + "/captions", ""));
             try { SubtitleTracks.fetch(base + "/redirect", ""); fail(); }
             catch (IOException expected) { assertEquals("Subtitle HTTP 302", expected.getMessage()); }
-        } finally { server.stop(0); }
+            responses.join(5000);
+            assertFalse(responses.isAlive());
+        }
     }
     @Test public void onlyYoutubeCaptionEndpointsAreAllowed() {
         assertTrue(SubtitleTracks.safeUrl(MANUAL));
