@@ -148,7 +148,7 @@ function subtitleFallbacks(selected) {
   });
   const automatic = [...new Set(automaticSubtitleLanguages)].filter(code => code !== selected);
   const originals = automatic.filter(code => code.endsWith('-orig')).slice(0, 2);
-  const otherAuto = automatic.filter(code => !code.endsWith('-orig') && !manual.includes(code)).slice(0, 2);
+  const otherAuto = automatic.filter(code => !code.endsWith('-orig')).slice(0, 2);
   return { fallbackManual: manual.slice(0, 6), fallbackAutomatic: [...originals, ...otherAuto] };
 }
 $('subtitle').addEventListener('click', async () => {
