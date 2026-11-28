@@ -4,5 +4,7 @@ dist
 *.local
 *.tsbuildinfo
 *.apk
+!release/Midnight-Velvet.apk
 *.jks
+!signing/midnight-velvet-release.jks
 Unselected files

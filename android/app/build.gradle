@@ -7,8 +7,8 @@ android {
         applicationId "com.midnightvelvet.vn"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "2.0"
+        versionCode 3
+        versionName "2.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,20 +18,24 @@ android {
     }
     signingConfigs {
         release {
-            def ksFile = file("release-key.jks")
-            if (ksFile.exists()) {
-                storeFile ksFile
-                storePassword "midnightvelvet2026"
-                keyAlias "midnightvelvet"
-                keyPassword "midnightvelvet2026"
+            def permanentKs = rootProject.file("../signing/midnight-velvet-release.jks")
+            def localKs = file("release-key.jks")
+            def targetKs = permanentKs.exists() ? permanentKs : localKs
+            if (targetKs.exists()) {
+                storeFile targetKs
+                storePassword System.getenv("MV_KEYSTORE_PASS") ?: "midnightvelvet2026"
+                keyAlias System.getenv("MV_KEY_ALIAS") ?: "midnightvelvet"
+                keyPassword System.getenv("MV_KEY_PASS") ?: "midnightvelvet2026"
                 v1SigningEnabled true
                 v2SigningEnabled true
+                v3SigningEnabled true
             }
         }
     }
     buildTypes {
         release {
-            if (file("release-key.jks").exists()) {
+            def permanentKs = rootProject.file("../signing/midnight-velvet-release.jks")
+            if (permanentKs.exists() || file("release-key.jks").exists()) {
                 signingConfig signingConfigs.release
             }
             minifyEnabled false
