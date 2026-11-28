@@ -1,5 +1,12 @@
 package com.slicevid.app;
 
+import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import androidx.activity.result.ActivityResult;
+import androidx.core.content.ContextCompat;
+import com.getcapacitor.annotation.ActivityCallback;
+import android.provider.DocumentsContract;
 import android.content.ContentValues;
 import android.net.Uri;
 import android.os.Environment;
@@ -100,95 +107,81 @@ public class DeviceDownloader extends Plugin {
         });
     }
 
-    private void progress(float progress) {
-        JSObject data = new JSObject();
-        data.put("percent", Math.max(0, Math.min(100, (int) progress)));
-        notifyListeners("downloadProgress", data);
+    @PluginMethod
+    public void chooseFolder(PluginCall call) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(call, intent, "folderResult");
     }
 
-    private void publish(File file, String extension) throws Exception {
-        ContentValues values = new ContentValues();
-        values.put(MediaStore.Downloads.DISPLAY_NAME, "SliceVid-" + System.currentTimeMillis() + "." + extension);
-        values.put(MediaStore.Downloads.MIME_TYPE, extension.equals("mp3") ? "audio/mpeg" : extension.equals("mp4") ? "video/mp4" : extension.equals("webm") ? "video/webm" : "text/plain");
-        values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/SliceVid");
-        values.put(MediaStore.Downloads.IS_PENDING, 1);
-        Uri destination = getContext().getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-        if (destination == null) throw new Exception("نەتوانرا فایل لە Downloads پاشەکەوت بکرێت.");
+    @ActivityCallback
+    private void folderResult(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        Intent data = result.getData();
+        if (result.getResultCode() != Activity.RESULT_OK || data == null || data.getData() == null) {
+            call.reject("هیچ بوخچەیەک هەڵنەبژێردرا."); return;
+        }
         try {
-            try (FileInputStream in = new FileInputStream(file); OutputStream out = getContext().getContentResolver().openOutputStream(destination)) {
-                if (out == null) throw new Exception("نەتوانرا فایل بنووسرێت.");
-                byte[] buffer = new byte[64 * 1024];
-                int n;
-                while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
-            }
-            values.clear();
-            values.put(MediaStore.Downloads.IS_PENDING, 0);
-            getContext().getContentResolver().update(destination, values, null, null);
+            Uri uri = data.getData();
+            int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            getContext().getContentResolver().takePersistableUriPermission(uri, flags);
+            getContext().getSharedPreferences("download_settings", 0).edit().putString("folder", uri.toString()).apply();
+            call.resolve(folderInfo());
+        } catch (Exception e) { fail(call, e); }
+    }
+
+    private JSObject folderInfo() {
+        String folder = getContext().getSharedPreferences("download_settings", 0).getString("folder", "");
+        String label = "Downloads / SliceVid";
+        try { if (!folder.isEmpty()) label = DocumentsContract.getTreeDocumentId(Uri.parse(folder)).replace(':', '/'); } catch (Exception ignored) { }
+        return new JSObject().put("label", label);
+    }
+
+    @PluginMethod
+    public void getFolder(PluginCall call) { call.resolve(folderInfo()); }
+
+    @PluginMethod
+    public void status(PluginCall call) {
+        SharedPreferences p = getContext().getSharedPreferences("download_state", 0);
+        String state = p.getString("state", "idle");
+        if ("running".equals(state) && !DownloadService.running) {
+            state = "error";
+            p.edit().putString("state", state).putString("message", "دابەزاندن وەستا؛ تکایە دووبارە هەوڵ بدەوە.").apply();
+        }
+        JSObject result = new JSObject();
+        result.put("state", state); result.put("message", p.getString("message", "")); result.put("percent", p.getInt("percent", 0));
+        call.resolve(result);
+    }
+
+    private void begin(PluginCall call, boolean subtitles) {
+        boolean queuedCreated = false;
+        try {
+            String link = url(call);
+            String priorState = getContext().getSharedPreferences("download_state", 0).getString("state", "idle");
+            if (DownloadService.running || "queued".equals(priorState)) throw new Exception("دابەزاندنێک هێشتا بەردەوامە.");
+            String format = call.getString("format", subtitles ? "srt" : "mp4");
+            if (subtitles ? !format.matches("srt|vtt") : !format.matches("mp4|mp3|webm")) throw new Exception("فۆرماتەکە دروست نییە.");
+            String quality = call.getString("quality", "best");
+            String language = call.getString("language", "");
+            if (!quality.matches("best|360|480|720|1080") || (subtitles && !language.matches("[A-Za-z0-9_-]{1,35}"))) throw new Exception("هەڵبژاردنەکە دروست نییە.");
+            double start = call.getDouble("start", 0.0), end = call.getDouble("end", 0.0);
+            if (!Double.isFinite(start) || !Double.isFinite(end) || start < 0 || end < 0 || end > Integer.MAX_VALUE || (end > 0 && end <= start) || (start > 0 && end == 0)) throw new Exception("کاتی دەستپێک و کۆتایی بپشکنە.");
+            Intent intent = new Intent(getContext(), DownloadService.class);
+            intent.putExtra("url", link); intent.putExtra("kind", subtitles ? "subtitle" : "video");
+            intent.putExtra("format", format); intent.putExtra("quality", quality); intent.putExtra("language", language);
+            intent.putExtra("start", (int) start); intent.putExtra("end", (int) end);
+            intent.putExtra("folder", getContext().getSharedPreferences("download_settings", 0).getString("folder", ""));
+            getContext().getSharedPreferences("download_state", 0).edit().putString("state", "queued").putString("message", "ئامادەکردنی دابەزاندن...").putInt("percent", 0).apply();
+            queuedCreated = true;
+            ContextCompat.startForegroundService(getContext(), intent);
+            call.resolve();
         } catch (Exception e) {
-            getContext().getContentResolver().delete(destination, null, null);
-            throw e;
+            if (queuedCreated && !DownloadService.running)
+                getContext().getSharedPreferences("download_state", 0).edit().putString("state", "error").putString("message", "نەتوانرا دابەزاندن دەست پێ بکرێت.").apply();
+            fail(call, e);
         }
     }
 
-    private File findOutput(File dir, String extension) throws Exception {
-        File[] files = dir.listFiles((d, name) -> name.endsWith("." + extension));
-        if (files == null || files.length == 0) throw new Exception("فایلە داواکراوەکە دروست نەبوو؛ ڕەنگە ئەم فۆرماتە بەردەست نەبێت.");
-        return files[0];
-    }
-
-    @PluginMethod
-    public void download(PluginCall call) {
-        worker.execute(() -> {
-            File dir = new File(getContext().getCacheDir(), "slice-" + UUID.randomUUID());
-            try {
-                String link = url(call);
-                String format = call.getString("format", "mp4");
-                String quality = call.getString("quality", "best");
-                if (!format.matches("mp4|mp3|webm") || !quality.matches("best|360|480|720|1080")) throw new Exception("فۆرماتەکە دروست نییە.");
-                Double start = call.getDouble("start", 0.0), end = call.getDouble("end", 0.0);
-                if (start < 0 || end < 0 || (end > 0 && end <= start) || (start > 0 && end == 0)) throw new Exception("کاتی دەستپێک و کۆتایی بپشکنە.");
-                if (!dir.mkdirs()) throw new Exception("نەتوانرا شوێنی کاتی دروست بکرێت.");
-                initialize();
-                YoutubeDLRequest r = request(link);
-                r.addOption("-o", new File(dir, "clip.%(ext)s").getAbsolutePath());
-                if (end > 0) {
-                    r.addOption("--download-sections", "*" + start.intValue() + "-" + end.intValue());
-                    r.addOption("--force-keyframes-at-cuts");
-                }
-                if (format.equals("mp3")) {
-                    r.addOption("-x"); r.addOption("--audio-format", "mp3");
-                } else {
-                    String cap = quality.equals("best") ? "" : "[height<=" + quality + "]";
-                    r.addOption("-f", "bv*" + cap + "+ba/b" + cap);
-                    r.addOption("--merge-output-format", format);
-                    r.addOption("--recode-video", format);
-                }
-                YoutubeDL.getInstance().execute(r, UUID.randomUUID().toString(), (p, eta, line) -> { progress(p); return Unit.INSTANCE; });
-                publish(findOutput(dir, format), format);
-                call.resolve();
-            } catch (Exception e) { fail(call, e); }
-            finally { File[] files = dir.listFiles(); if (files != null) for (File f : files) f.delete(); dir.delete(); }
-        });
-    }
-
-    @PluginMethod
-    public void subtitles(PluginCall call) {
-        worker.execute(() -> {
-            File dir = new File(getContext().getCacheDir(), "subs-" + UUID.randomUUID());
-            try {
-                String link = url(call), lang = call.getString("language", ""), format = call.getString("format", "srt");
-                if (!lang.matches("[A-Za-z0-9_-]{1,35}") || !format.matches("srt|vtt")) throw new Exception("زمان یان فۆرماتەکە دروست نییە.");
-                if (!dir.mkdirs()) throw new Exception("نەتوانرا شوێنی کاتی دروست بکرێت.");
-                initialize();
-                YoutubeDLRequest r = request(link);
-                r.addOption("--skip-download"); r.addOption("--write-subs"); r.addOption("--write-auto-subs");
-                r.addOption("--sub-langs", lang); r.addOption("--sub-format", "vtt/best"); r.addOption("--convert-subs", format);
-                r.addOption("-o", new File(dir, "captions.%(ext)s").getAbsolutePath());
-                YoutubeDL.getInstance().execute(r);
-                publish(findOutput(dir, format), format);
-                call.resolve();
-            } catch (Exception e) { fail(call, e); }
-            finally { File[] files = dir.listFiles(); if (files != null) for (File f : files) f.delete(); dir.delete(); }
-        });
-    }
+    @PluginMethod public void download(PluginCall call) { begin(call, false); }
+    @PluginMethod public void subtitles(PluginCall call) { begin(call, true); }
 }

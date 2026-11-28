@@ -19,6 +19,7 @@
       <p class="hint">جارى یەکەم لەوانەیە ئامادەکردن کەمێک کات بخایەنێت.</p>
     </form>
     <p id="error" class="error" role="alert" hidden></p>
+    <section class="card status" id="status" hidden role="status" aria-live="polite"><strong id="status-text"></strong><progress id="progress" max="100" value="0"></progress><p id="background-hint" class="hint">دەتوانیت لە ئەپەکە بچیتە دەرەوە؛ دابەزاندن لە پشتەوە بەردەوام دەبێت.</p></section>
     <section id="details" hidden>
       <article class="card video">
         <img id="thumb" alt="" referrerpolicy="no-referrer">
@@ -26,11 +27,19 @@
       </article>
       <article class="card">
         <h2>دابەزاندنی ڤیدیۆ</h2>
-        <p class="hint">بۆ هەموو ڤیدیۆکە کاتەکان بە بەتاڵی جێبهێڵە. بۆ بڕین، هەردوو کاتەکە بنووسە.</p>
-        <div class="grid">
-          <label>دەستپێک <input id="start" type="text" inputmode="numeric" dir="ltr" placeholder="00:00"></label>
-          <label>کۆتایی <input id="end" type="text" inputmode="numeric" dir="ltr" placeholder="01:30"></label>
+        <p class="hint">یەکێک هەڵبژێرە:</p>
+        <div class="mode-select" role="group" aria-label="بەشی ڤیدیۆ">
+          <button id="full-mode" class="mode active" type="button" aria-pressed="true">هەمووی</button>
+          <button id="clip-mode" class="mode" type="button" aria-pressed="false">بەشێک ببڕە</button>
         </div>
+        <div id="clip-controls" hidden>
+          <p class="hint">خاڵەکان بجوڵێنە بۆ دیاریکردنی دەستپێک و کۆتایی. یان کاتەکان بنووسە.</p>
+          <div class="range-row"><label for="start-range">دەستپێک <b id="start-label" dir="ltr">00:00</b></label><input id="start-range" type="range" dir="ltr" min="0" max="100" value="0" step="1"></div>
+          <div class="range-row"><label for="end-range">کۆتایی <b id="end-label" dir="ltr">00:00</b></label><input id="end-range" type="range" dir="ltr" min="0" max="100" value="30" step="1"></div>
+          <p class="clip-length">ماوەی بەشەکە: <strong id="clip-length" dir="ltr">00:30</strong></p>
+          <details class="advanced-time"><summary>نووسینی کاتی ورد</summary><div class="grid"><label>دەستپێک <input id="start" type="text" inputmode="numeric" dir="ltr" placeholder="00:00"></label><label>کۆتایی <input id="end" type="text" inputmode="numeric" dir="ltr" placeholder="01:30"></label></div></details>
+        </div>
+        <div class="folder"><span>شوێنی دابەزاندن</span><strong id="folder-label" dir="ltr">Downloads / SliceVid</strong><button type="button" class="folder-btn" id="choose-folder">گۆڕینی شوێن</button></div>
         <div class="grid">
           <label>فۆرمات <select id="format" dir="ltr"><option value="mp4">MP4</option><option value="webm">WebM</option><option value="mp3">MP3</option></select></label>
           <label>کوالێتی <select id="quality" dir="ltr"><option value="best">Best available</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option><option value="360">360p</option></select></label>
@@ -43,7 +52,6 @@
         <button id="subtitle" class="secondary" type="button">⬇ دابەزاندنی ژێرنووس</button>
       </article>
     </section>
-    <section class="card status" id="status" hidden role="status" aria-live="polite"><span id="status-text"></span><progress id="progress" max="100" value="0"></progress></section>
     <p class="foot">تەنها ئەو ناوەڕۆکە دابەزێنە کە مافی بەکارهێنانی هەیە. <a href="/licenses/youtubedl-android-LICENSE.txt">GPL-3.0</a> · <a href="https://github.com/yausername/youtubedl-android">youtubedl-android</a></p>
   </main>
   <script src="/native.js"></script>
