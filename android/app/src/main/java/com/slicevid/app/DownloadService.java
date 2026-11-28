@@ -82,56 +82,17 @@ public class DownloadService extends Service {
             if (link == null || format == null || kind == null || !dir.mkdirs()) throw new Exception("نەتوانرا دابەزاندن دەست پێ بکرێت.");
             YoutubeDL.getInstance().init(getApplicationContext());
             FFmpeg.getInstance().init(getApplicationContext());
-            YoutubeDLRequest r = new YoutubeDLRequest(link);
-            r.addOption("--no-playlist"); r.addOption("--no-warnings");
-            r.addOption("--concurrent-fragments", "4");
-            r.addOption("--socket-timeout", "30"); r.addOption("--retries", "3"); r.addOption("--fragment-retries", "3");
-            r.addOption("-o", new File(dir, "download.%(ext)s").getAbsolutePath());
-            if (kind.equals("subtitle")) {
-                r.addOption("--skip-download"); r.addOption("--write-subs"); r.addOption("--write-auto-subs");
-                r.addOption("--sub-langs", intent.getStringExtra("language"));
-                r.addOption("--sub-format", "vtt/best"); r.addOption("--convert-subs", format);
-            } else {
-                int start = intent.getIntExtra("start", 0), end = intent.getIntExtra("end", 0);
-                if (end > 0) {
-                    r.addOption("--download-sections", "*" + start + "-" + end);
-                    r.addOption("--force-keyframes-at-cuts");
-                    // yt-dlp delegates sections to ffmpeg, whose ordinary progress
-                    // is on stderr and is not forwarded by the Android wrapper.
-                    // H.264 re-encoding is needed for precise clip/subtitle timing.
-                    // A faster x264 preset reduces CPU time without changing codecs.
-                    r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? " -preset veryfast" : ""));
-                }
-                if (format.equals("mp3")) { r.addOption("-x"); r.addOption("--audio-format", "mp3"); }
-                else {
-                    String quality = intent.getStringExtra("quality");
-                    String cap = "best".equals(quality) ? "" : "[height<=" + quality + "]";
-                    if (format.equals("mp4")) {
-                        // Do not choose AV1/VP9 just because it has an .mp4 container:
-                        // some Android players render only audio for those streams.
-                        // Prefer an actual H.264 video stream and AAC audio, or a
-                        // progressive MP4 containing both. Fail if none exists.
-                        String h264 = "[ext=mp4][vcodec^=avc1]" + cap;
-                        r.addOption("-f", "bv" + h264 + "+ba[ext=m4a][acodec^=mp4a]/b" + h264 + "[acodec^=mp4a]");
-                        r.addOption("--merge-output-format", "mp4");
-                    } else {
-                        r.addOption("-f", "bv" + cap + "+ba/b" + cap);
-                        r.addOption("--merge-output-format", format); r.addOption("--recode-video", format);
-                    }
-                }
-            }
             final int clipDuration = intent.getIntExtra("end", 0) - intent.getIntExtra("start", 0);
-            YoutubeDL.getInstance().execute(r, UUID.randomUUID().toString(), (p, eta, line) -> {
-                long now = System.currentTimeMillis();
-                if (now - lastProgress > 700) {
-                    int percent = DownloadProgress.percent(line, p, kind.equals("video") && intent.getIntExtra("end", 0) > 0 ? clipDuration : 0);
-                    if (percent >= 0) {
-                        lastProgress = now;
-                        state("running", "قۆناغی ئێستا... " + percent + "%", percent);
-                    }
-                }
-                return Unit.INSTANCE;
-            });
+            DownloadRetry.run(
+                alternate -> executeRequest(buildRequest(intent, dir, alternate), intent, kind, clipDuration),
+                () -> {
+                    state("running", "یوتوب ڕێگەی نەدا؛ نوێکردنەوە و هەوڵدانەوە...", -1);
+                    YoutubeDL.getInstance().updateYoutubeDL(getApplicationContext(), YoutubeDL.UpdateChannel._STABLE);
+                },
+                () -> clearJobFiles(dir),
+                () -> state("running", "ڕێگایەکی تری دابەزاندن تاقی دەکرێتەوە...", -1)
+            );
+
             state("running", "پاشەکەوتکردنی فایل...", -1);
             File[] outputs = dir.listFiles((d, name) -> name.endsWith("." + format));
             if (outputs == null || outputs.length == 0) throw new Exception("فایلەکە بەردەست نییە یان دروست نەبوو.");
@@ -153,9 +114,7 @@ public class DownloadService extends Service {
             resultMessage = "تەواو بوو ✓ فایلەکە لە شوێنی هەڵبژێردراو پاشەکەوت کرا.";
         } catch (Exception e) {
             resultState = "error";
-            resultMessage = e.getMessage();
-            if (resultMessage == null || resultMessage.isEmpty()) resultMessage = "دابەزاندن سەرکەوتوو نەبوو. ئینتەرنێت و لینکەکە بپشکنە.";
-            if (resultMessage.length() > 350) resultMessage = resultMessage.substring(0, 350);
+            resultMessage = DownloadFailure.userMessage(e);
         } finally {
             File[] files = dir.listFiles(); if (files != null) for (File f : files) f.delete(); dir.delete();
             if (wakeLock.isHeld()) wakeLock.release();
@@ -165,6 +124,72 @@ public class DownloadService extends Service {
         stopForeground(STOP_FOREGROUND_REMOVE);
         getSystemService(NotificationManager.class).notify(ID, notification(resultMessage, 100, false));
         stopSelf();
+    }
+
+    private YoutubeDLRequest buildRequest(Intent intent, File dir, boolean alternate) {
+        String link = intent.getStringExtra("url"), kind = intent.getStringExtra("kind"), format = intent.getStringExtra("format");
+        YoutubeDLRequest r = new YoutubeDLRequest(link);
+        r.addOption("--no-playlist"); r.addOption("--no-warnings");
+        r.addOption("--concurrent-fragments", "4");
+        r.addOption("--socket-timeout", "30"); r.addOption("--retries", "3"); r.addOption("--fragment-retries", "3");
+        r.addOption("-o", new File(dir, "download.%(ext)s").getAbsolutePath());
+        if (kind.equals("subtitle")) {
+            r.addOption("--skip-download"); r.addOption("--write-subs"); r.addOption("--write-auto-subs");
+            r.addOption("--sub-langs", intent.getStringExtra("language"));
+            r.addOption("--sub-format", "vtt/best"); r.addOption("--convert-subs", format);
+        } else {
+            int start = intent.getIntExtra("start", 0), end = intent.getIntExtra("end", 0);
+            if (end > 0) {
+                r.addOption("--download-sections", "*" + start + "-" + end);
+                r.addOption("--force-keyframes-at-cuts");
+                // yt-dlp delegates sections to ffmpeg, whose ordinary progress
+                // is on stderr and is not forwarded by the Android wrapper.
+                // H.264 re-encoding is needed for precise clip/subtitle timing.
+                // A faster x264 preset reduces CPU time without changing codecs.
+                r.addOption("--downloader-args", "ffmpeg:-progress pipe:1 -nostats" + (format.equals("mp4") ? " -preset veryfast" : ""));
+            }
+            if (format.equals("mp3")) { r.addOption("-x"); r.addOption("--audio-format", "mp3"); }
+            else {
+                String quality = intent.getStringExtra("quality");
+                String cap = "best".equals(quality) ? "" : "[height<=" + quality + "]";
+                if (format.equals("mp4")) {
+                    // Do not choose AV1/VP9 just because it has an .mp4 container:
+                    // some Android players render only audio for those streams.
+                    // Prefer an actual H.264 video stream and AAC audio, or a
+                    // progressive MP4 containing both. Fail if none exists.
+                    String h264 = "[ext=mp4][vcodec^=avc1]" + cap;
+                    r.addOption("-f", "bv" + h264 + "+ba[ext=m4a][acodec^=mp4a]/b" + h264 + "[acodec^=mp4a]");
+                    r.addOption("--merge-output-format", "mp4");
+                } else {
+                    r.addOption("-f", "bv" + cap + "+ba/b" + cap);
+                    r.addOption("--merge-output-format", format); r.addOption("--recode-video", format);
+                }
+            }
+        }
+        if (alternate) r.addOption("--extractor-args", "youtube:player_client=web_safari");
+        return r;
+    }
+
+    private void executeRequest(YoutubeDLRequest request, Intent intent, String kind, int clipDuration) throws Exception {
+        YoutubeDL.getInstance().execute(request, UUID.randomUUID().toString(), (p, eta, line) -> {
+            long now = System.currentTimeMillis();
+            if (now - lastProgress > 700) {
+                int percent = DownloadProgress.percent(line, p, kind.equals("video") && intent.getIntExtra("end", 0) > 0 ? clipDuration : 0);
+                if (percent >= 0) {
+                    lastProgress = now;
+                    state("running", "قۆناغی ئێستا... " + percent + "%", percent);
+                }
+            }
+            return Unit.INSTANCE;
+        });
+    }
+
+    private void clearJobFiles(File dir) throws Exception {
+        File[] files = dir.listFiles();
+        if (files != null) for (File file : files) {
+            if (file.isDirectory()) clearJobFiles(file);
+            if (!file.delete()) throw new Exception("نەتوانرا فایلە کاتییەکان بسڕدرێنەوە.");
+        }
     }
 
     private void validateMp4(File file) throws Exception {

@@ -61,10 +61,7 @@ public class DeviceDownloader extends Plugin {
     }
 
     private void fail(PluginCall call, Exception error) {
-        String msg = error.getMessage();
-        if (msg == null || msg.trim().isEmpty()) msg = "نەتوانرا کارەکە تەواو بکرێت. پەیوەندی ئینتەرنێت و لینکەکە بپشکنە.";
-        if (msg.length() > 350) msg = msg.substring(0, 350);
-        call.reject(msg);
+        call.reject(DownloadFailure.userMessage(error));
     }
 
     @PluginMethod
