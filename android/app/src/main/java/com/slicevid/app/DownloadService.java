@@ -82,8 +82,7 @@ public class DownloadService extends Service {
             String kind = intent.getStringExtra("kind");
             String format = intent.getStringExtra("format");
             if (link == null || format == null || kind == null || !dir.mkdirs()) throw new Exception("نەتوانرا دابەزاندن دەست پێ بکرێت.");
-            YoutubeDL.getInstance().init(getApplicationContext());
-            FFmpeg.getInstance().init(getApplicationContext());
+            if (!kind.equals("subtitle")) initializeDownloader();
             final int clipDuration = intent.getIntExtra("end", 0) - intent.getIntExtra("start", 0);
             boolean fast = DownloadSpeed.useParallel(kind, intent.getIntExtra("end", 0));
             if (fast) {
@@ -104,6 +103,19 @@ public class DownloadService extends Service {
                 String[] manual = intent.getIntExtra("end", 0) > 0 ? intent.getStringArrayExtra("fallbackManual") : null;
                 String[] automatic = intent.getIntExtra("end", 0) > 0 ? intent.getStringArrayExtra("fallbackAutomatic") : null;
                 SubtitleDownload.Result<File> result = SubtitleDownload.run(subtitleLanguage, tryAutomatic, manual, automatic, (language, automaticOnly) -> {
+                    try {
+                        String json = SubtitleTracks.load(getCacheDir(), link, language, automaticOnly);
+                        if (json != null) {
+                            long start = intent.getIntExtra("start", 0) * 1000L;
+                            long end = intent.getIntExtra("end", 0) * 1000L;
+                            String text = SubtitleJson.convert(json, format, start, end);
+                            File file = new File(dir, "section." + format);
+                            Files.write(file.toPath(), text.getBytes(StandardCharsets.UTF_8));
+                            return file;
+                        }
+                    } catch (SubtitleTrimmer.NoCuesException missing) { throw missing; }
+                    catch (Exception ignored) { }
+                    initializeDownloader();
                     downloadWithRetry(intent, dir, parallelAvailable, boundedAvailable, kind, clipDuration, automaticOnly, language);
                     return prepareOutput(intent, dir, kind, format, clipDuration);
                 }, () -> state("running", "ژێرنووسێکی تر تاقی دەکرێتەوە...", -1), () -> clearJobFiles(dir));
@@ -130,6 +142,11 @@ public class DownloadService extends Service {
         stopForeground(STOP_FOREGROUND_REMOVE);
         getSystemService(NotificationManager.class).notify(ID, notification(resultMessage, 100, false));
         stopSelf();
+    }
+
+    private void initializeDownloader() throws Exception {
+        YoutubeDL.getInstance().init(getApplicationContext());
+        FFmpeg.getInstance().init(getApplicationContext());
     }
 
     private void downloadWithRetry(Intent intent, File dir, boolean parallel, boolean bounded, String kind, int clipDuration, boolean automaticOnly, String subtitleLanguage) throws Exception {

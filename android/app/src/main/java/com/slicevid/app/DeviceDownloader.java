@@ -126,6 +126,8 @@ public class DeviceDownloader extends Plugin {
                         YoutubeDL.getInstance().updateYoutubeDL(getContext(), YoutubeDL.UpdateChannel._STABLE);
                         return true;
                     });
+                try { SubtitleTracks.save(getContext().getCacheDir(), link, captions.value); }
+                catch (Exception ignored) { new File(getContext().getCacheDir(), "caption-tracks.json").delete(); }
                 JSObject out = new JSObject();
                 out.put("title", raw.optString("title", "Video"));
                 out.put("channel", raw.optString("uploader", ""));
